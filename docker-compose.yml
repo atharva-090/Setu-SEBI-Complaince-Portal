@@ -1,0 +1,133 @@
+services:
+  postgres:
+    image: pgvector/pgvector:pg16
+    container_name: setu-postgres
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-setu_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-setu_password}
+      POSTGRES_DB: ${POSTGRES_DB:-setu_db}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./infra/docker/init-db.sql:/docker-entrypoint-initdb.d/init-db.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-setu_user} -d ${POSTGRES_DB:-setu_db}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks: [setu-network]
+
+  mongodb:
+    image: mongo:7
+    container_name: setu-mongodb
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_USER:-setu_user}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_PASSWORD:-setu_password}
+      MONGO_INITDB_DATABASE: ${MONGO_DB:-setu_files}
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongodb_data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks: [setu-network]
+
+  backend:
+    build:
+      context: ./services/backend
+      dockerfile: Dockerfile
+    container_name: setu-backend
+    environment:
+      NODE_ENV: development
+      PORT: 3000
+      API_PREFIX: api/v1
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_USERNAME: ${POSTGRES_USER:-setu_user}
+      DB_PASSWORD: ${POSTGRES_PASSWORD:-setu_password}
+      DB_DATABASE: ${POSTGRES_DB:-setu_db}
+      MONGODB_URI: mongodb://${MONGO_USER:-setu_user}:${MONGO_PASSWORD:-setu_password}@mongodb:27017/${MONGO_DB:-setu_files}?authSource=admin
+      JWT_SECRET: ${JWT_SECRET:-dev-secret-change-me}
+      JWT_EXPIRATION: ${JWT_EXPIRATION:-7d}
+      SEED_ON_BOOT: ${SEED_ON_BOOT:-true}
+      AI_SERVICE_URL: http://ai-service:8000
+      AI_SERVICE_KEY: ${AI_SERVICE_KEY:-dev-ai-key}
+      SWAGGER_ENABLED: "true"
+      CORS_ORIGIN: http://localhost:3001
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./services/backend:/app
+      - /app/node_modules
+    depends_on:
+      postgres:
+        condition: service_healthy
+      mongodb:
+        condition: service_healthy
+    command: npm run start:dev
+    networks: [setu-network]
+
+  ai-service:
+    build:
+      context: ./services/ai-service
+      dockerfile: Dockerfile
+    container_name: setu-ai
+    environment:
+      AI_SERVICE_KEY: ${AI_SERVICE_KEY:-dev-ai-key}
+      LLM_PROVIDER: ${LLM_PROVIDER:-openai}
+      LLM_API_KEY: ${LLM_API_KEY:-}
+      LLM_BASE_URL: ${LLM_BASE_URL:-}
+      LLM_MODEL_LARGE: ${LLM_MODEL_LARGE:-gpt-4o}
+      LLM_MODEL_SMALL: ${LLM_MODEL_SMALL:-gpt-4o-mini}
+      EMBEDDING_MODEL: ${EMBEDDING_MODEL:-text-embedding-3-small}
+      LOG_LEVEL: INFO
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./services/ai-service:/app
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+    networks: [setu-network]
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: setu-frontend
+    environment:
+      NEXT_PUBLIC_API_URL: http://localhost:3000/api/v1
+      WATCHPACK_POLLING: "true"
+    ports:
+      - "3001:3001"
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+      - /app/.next
+    command: npm run dev
+    depends_on:
+      - backend
+    networks: [setu-network]
+
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: setu-pgadmin
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@setu.dev
+      PGADMIN_DEFAULT_PASSWORD: admin
+      PGADMIN_CONFIG_SERVER_MODE: "False"
+    ports:
+      - "5050:80"
+    depends_on:
+      - postgres
+    networks: [setu-network]
+
+volumes:
+  postgres_data:
+  mongodb_data:
+
+networks:
+  setu-network:
+    driver: bridge

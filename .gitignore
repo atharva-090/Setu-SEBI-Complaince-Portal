@@ -1,0 +1,25 @@
+# deps
+node_modules/
+**/node_modules/
+.venv/
+__pycache__/
+*.pyc
+
+# build
+dist/
+.next/
+out/
+*.tsbuildinfo
+
+# env
+.env
+.env.local
+**/.env
+
+# misc
+.DS_Store
+*.log
+coverage/
+
+# keep reference projects out of the app build
+reference projects/
