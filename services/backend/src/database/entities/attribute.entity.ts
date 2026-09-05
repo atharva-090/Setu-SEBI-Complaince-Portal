@@ -30,6 +30,13 @@ export class Attribute {
   @Column({ nullable: true })
   createdFrom: string;
 
+  /**
+   * Step 13a. True when this attribute is COMPUTED from others rather than
+   * supplied by the firm. The intake form only ever asks for the leaves.
+   */
+  @Column({ default: false })
+  isDerived: boolean;
+
   @CreateDateColumn()
   createdAt: Date;
 }

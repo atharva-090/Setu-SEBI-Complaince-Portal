@@ -23,6 +23,7 @@ from typing import Any
 
 from .config import settings
 from .drafter import provider  # same mock/real switch as the drafter
+from . import usage
 from .llm import _client
 
 # ── mock judge ────────────────────────────────────────────────────────────────
@@ -119,6 +120,7 @@ def _judge_real(token: dict[str, Any], candidates: list[dict[str, Any]]) -> dict
         tools=[_DECIDE_TOOL],
         tool_choice={"type": "function", "function": {"name": "decide_attribute"}},
     )
+    usage.record(settings.llm_model_small, getattr(resp, "usage", None))
     calls = resp.choices[0].message.tool_calls or []
     if not calls:
         return {"match_index": -1, "same": False, "reason": "no tool call", "confidence": 0.0, "judge": settings.llm_provider}
@@ -140,3 +142,95 @@ def judge_attribute(token: dict[str, Any], candidates: list[dict[str, Any]]) -> 
     if provider() == "mock":
         return _judge_mock(token, candidates)
     return _judge_real(token, candidates)
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Step 10, rung 6 — the audience judge
+#
+# Reached only for the genuinely ambiguous middle: rung 3 proved nothing, rung 4
+# proved nothing, and rung 5 found something CLOSE. The question asked is
+# deliberately narrow, and it is asked about the TEST and the meaning, never the
+# name -- matching by name is the one thing the whole step exists to avoid.
+#
+# ⚠️ A "yes" here merges two groups of firms. That is the duplicate-branch
+# failure in reverse: wrongly merging puts one group's duties on another, and
+# nothing downstream detects it. So the prompt is told that "different" is the
+# safe answer and that it should be given whenever the tests are not clearly
+# describing the same set.
+# ─────────────────────────────────────────────────────────────────────────────
+
+AUDIENCE_JUDGE_PROMPT = """You decide whether two descriptions name the SAME SET OF FIRMS.
+
+You are given one new audience and up to three existing ones, each with a test
+over firm properties and a short label.
+
+Judge by the TEST and what it means, never by the label. Two labels can read
+alike and select different firms; two very different labels can select the same
+firms.
+
+Answer "same" ONLY when you are confident the two tests select the same firms.
+If the sets merely overlap, or one is narrower than the other, or you cannot
+tell, answer "different" -- a narrower group is a separate audience, not a match.
+
+Merging two groups wrongly puts one group's obligations onto another and nothing
+downstream can detect it. "different" is the safe answer and costs only an extra
+node in the register."""
+
+JUDGE_AUDIENCE_TOOL = {
+    "type": "function",
+    "function": {
+        "name": "judge_audience",
+        "description": "Are these the same set of firms?",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "same": {"type": "boolean"},
+                "match_index": {
+                    "type": "integer",
+                    "description": "index of the matching candidate, or -1",
+                },
+                "confidence": {"type": "number"},
+                "why": {"type": "string"},
+            },
+            "required": ["same", "match_index", "confidence"],
+        },
+    },
+}
+
+
+def judge_audience(candidate: dict, existing: list[dict]) -> dict:
+    """Rung 6. Returns {same, match_index, confidence, why}."""
+    if provider() == "mock":
+        # Without a model there is no judgement to make. "different" is the
+        # answer that cannot silently merge two groups of firms.
+        return {
+            "same": False,
+            "match_index": -1,
+            "confidence": 0.0,
+            "why": "no model configured; not merged",
+            "provider": "mock",
+        }
+
+    lines = [
+        f"NEW AUDIENCE\n  label: {candidate.get('label')}\n  test: {candidate.get('predicate')}",
+        "\nEXISTING AUDIENCES",
+    ]
+    for i, e in enumerate(existing):
+        lines.append(f"  [{i}] label: {e.get('label')}\n      test: {e.get('predicate')}")
+    resp = _client().chat.completions.create(
+        model=settings.llm_model_small,
+        temperature=0,
+        messages=[
+            {"role": "system", "content": AUDIENCE_JUDGE_PROMPT},
+            {"role": "user", "content": "\n".join(lines)},
+        ],
+        tools=[JUDGE_AUDIENCE_TOOL],
+        tool_choice={"type": "function", "function": {"name": "judge_audience"}},
+    )
+    usage.record(settings.llm_model_small, getattr(resp, "usage", None))
+    calls = resp.choices[0].message.tool_calls or []
+    if not calls:
+        return {"same": False, "match_index": -1, "confidence": 0.0, "why": "no answer"}
+    out = json.loads(calls[0].function.arguments)
+    out["provider"] = provider()
+    return out

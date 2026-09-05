@@ -19,6 +19,7 @@ export * from './cache.entity';
 
 import { SourceClause } from './source-clause.entity';
 import { Attribute } from './attribute.entity';
+import { Formula } from './formula.entity';
 import { Obligation } from './obligation.entity';
 import { ObligationVersion } from './obligation-version.entity';
 import { Edge } from './edge.entity';
@@ -38,6 +39,7 @@ import { CacheEntry } from './cache.entity';
 export const ALL_ENTITIES = [
   SourceClause,
   Attribute,
+  Formula,
   Obligation,
   ObligationVersion,
   Edge,
@@ -54,3 +56,4 @@ export const ALL_ENTITIES = [
   IngestionRun,
   CacheEntry,
 ];
+export * from './formula.entity';

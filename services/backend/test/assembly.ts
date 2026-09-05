@@ -25,6 +25,7 @@ import {
   isFirmCondition,
   render,
   resolveModifier,
+  substituteValue,
 } from '../src/ingestion/assembly.engine';
 import { ClauseNode } from '../src/ingestion/links.engine';
 
@@ -462,6 +463,49 @@ async function main() {
       ],
     }) === null,
   );
+
+  // ── override_value now produces a real second rule ────────────────────────
+  section('override_value · the derived rule is BUILT, not just counted');
+
+  check(
+    'the value is substituted into a copy of the original',
+    substituteValue('days_since(x) <= 180', 90).expression === 'days_since(x) <= 90',
+    substituteValue('days_since(x) <= 180', 90).expression ?? 'null',
+  );
+  {
+    const ambiguous = substituteValue('days_since(x) <= 180 AND count(y) >= 2', 90);
+    check(
+      'two literals means WHICH one is ambiguous — refused, not guessed',
+      ambiguous.expression === null && /ambiguous/.test(ambiguous.note ?? ''),
+      ambiguous.note ?? '',
+    );
+  }
+  check(
+    'a non-numeric override value is refused',
+    substituteValue('days_since(x) <= 180', 'quarterly').expression === null,
+  );
+  check(
+    'and an original with no expression is refused',
+    substituteValue('', 90).expression === null,
+  );
+  {
+    const r = assemble(
+      [rule({ expression: 'days_since(a) <= 180' })],
+      [mod({ fromClauseNo: '18.9', fromClauseId: 8, effect: 'override_value', condition: 'is_qsb == true', overrideValue: '90' })],
+      CLAUSES,
+      VOCAB,
+    );
+    check(
+      'the derived rule carries the substituted expression',
+      r.derived[0]?.overriddenExpression === 'days_since(a) <= 90',
+      r.derived[0]?.overriddenExpression ?? 'null',
+    );
+    check(
+      'and the ORIGINAL is untouched',
+      r.rules[0].conditions?.join('|') === BROKERS.join('|'),
+      'all brokers keep the 180-day rule; QSBs get a stricter one',
+    );
+  }
 
   // ── the acceptance line ───────────────────────────────────────────────────
   section('acceptance');

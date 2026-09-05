@@ -90,6 +90,8 @@ export interface AssemblyRule {
   clauseId: number | null;
   clauseNo: string | null;
   title: string;
+  /** Needed to build an override: the value is substituted into a COPY. */
+  expression?: string;
   /** The audience in force from Step 10 — the floor, or a chapter narrowing. */
   audienceConditions: string[];
   audienceId: number | null;
@@ -137,6 +139,13 @@ export interface AssemblyResult {
     conditions: string[];
     overrideValue: string | number;
     source: string;
+    /** The original expression with the value substituted, when that could be
+     *  done unambiguously. Null when the original has no single numeric
+     *  literal to replace -- guessing which one SEBI meant would silently
+     *  produce a different duty. */
+    overriddenExpression: string | null;
+    /** Set when substitution was refused, so the reason reaches the queue. */
+    note?: string;
   }[];
   flags: AssemblyFlag[];
   stats: {
@@ -288,6 +297,43 @@ export function findTerm(node: Applicability, source: string): Applicability | n
   }
   if (node.kind === 'not') return findTerm(node.term, source);
   return null;
+}
+
+/**
+ * Put the override's value into a copy of the original expression.
+ *
+ * Only when there is exactly ONE numeric literal to replace. "for QSBs the
+ * period in 9.5.1 shall be 90 days" against `days_since(x) <= 180` is
+ * unambiguous; against `days_since(x) <= 180 AND count(y) >= 2` it is not, and
+ * picking one would silently produce a duty SEBI did not write. The refusal
+ * carries its reason so a human sees the override rather than losing it.
+ */
+export function substituteValue(
+  expression: string,
+  value: string | number,
+): { expression: string | null; note?: string } {
+  if (!expression) {
+    return { expression: null, note: 'the original rule has no expression to override' };
+  }
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric)) {
+    return { expression: null, note: `override value "${value}" is not a number` };
+  }
+  const literals = expression.match(/(?<![\w.])\d+(?:\.\d+)?(?![\w.])/g) ?? [];
+  if (literals.length !== 1) {
+    return {
+      expression: null,
+      note:
+        `the original has ${literals.length} numeric literals, so which one the ` +
+        `override replaces is ambiguous - filed for review instead of guessed`,
+    };
+  }
+  return {
+    expression: expression.replace(
+      /(?<![\w.])\d+(?:\.\d+)?(?![\w.])/,
+      String(numeric),
+    ),
+  };
 }
 
 // ── 12d — the walk ──────────────────────────────────────────────────────────
@@ -455,16 +501,23 @@ export function assemble(
             terms: [applicability, { kind: 'base', conditions: [modifier.condition], source }],
           };
           break;
-        case 'override_value':
+        case 'override_value': {
           // It does NOT edit the original. Everyone keeps the general rule; the
           // narrower group gets a second, stricter one marked as overriding it.
+          const substituted = substituteValue(
+            rule.expression ?? '',
+            modifier.overrideValue ?? '',
+          );
           derived.push({
             fromKey: rule.key,
             conditions: [...(flatten(applicability) ?? rule.audienceConditions), modifier.condition],
             overrideValue: modifier.overrideValue ?? '',
             source,
+            overriddenExpression: substituted.expression,
+            note: substituted.note,
           });
           break;
+        }
       }
     }
 

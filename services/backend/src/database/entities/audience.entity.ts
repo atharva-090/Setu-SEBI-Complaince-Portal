@@ -53,6 +53,17 @@ export class Audience {
   @Column({ type: 'timestamptz', nullable: true })
   approvedAt: Date;
 
+  /** Ladder rung 5. Read and written as text by the vector paths, like
+   *  obligations.embedding — `select: false` so it never rides along on an
+   *  ordinary find(). */
+  @Column({ type: 'text', nullable: true, select: false })
+  embedding: string;
+
+  /** What was embedded. Kept so a better model is a re-derivation, not a
+   *  re-resolution of every audience in the register. */
+  @Column({ type: 'text', nullable: true })
+  embeddedText: string;
+
   @CreateDateColumn()
   createdAt: Date;
 }

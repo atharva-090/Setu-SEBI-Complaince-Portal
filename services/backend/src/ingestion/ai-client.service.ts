@@ -120,6 +120,15 @@ export interface AiFingerprint {
   error: string | null;
 }
 
+/** Step 13a's input, drafted alongside the rules (Step 11). */
+export interface AiDefinition {
+  term: string;
+  expression: string;
+  meaning: string;
+  inputs: Record<string, { data_type?: string; meaning?: string; unit?: string }>;
+  confidence: number;
+}
+
 /** Step 12's input, drafted alongside the rules (Step 11). */
 export interface AiModifier {
   targets: string;
@@ -168,6 +177,8 @@ export interface AiExtractResponse {
     /** Step 12's input. Drafted here because it reads the same window; consumed
      *  much later, because assembly cannot start until every window is done. */
     modifiers?: AiModifier[];
+    /** Step 13a. Registered BEFORE any rule resolves. */
+    definitions?: AiDefinition[];
     error: string | null;
   }[];
 }
@@ -283,6 +294,14 @@ export class AiClientService {
     if (!items.length) return [];
     const res = await this.post<{ results: AiFingerprint[] }>('/fingerprint', { items });
     return res.results;
+  }
+
+  /** Step 10, rung 6. Only for the ambiguous middle rungs 3-5 could not settle. */
+  judgeAudience(
+    candidate: { label: string; predicate: string },
+    existing: { id: number; label: string; predicate: string }[],
+  ): Promise<{ same: boolean; match_index: number; confidence: number; why: string | null }> {
+    return this.post('/judge/audience', { candidate, existing });
   }
 
   judgeAttribute(
