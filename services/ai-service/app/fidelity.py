@@ -130,6 +130,14 @@ _FOOTNOTE = re.compile(r"(?<=[a-z\)])\d{1,3}\b")  # "Schedule453", "circular12"
 
 _NUMBER = re.compile(r"\d+(?:,\d{3})*(?:\.\d+)?")
 
+_TENS = {"twenty": 20, "thirty": 30, "forty": 40, "fifty": 50,
+         "sixty": 60, "seventy": 70, "eighty": 80, "ninety": 90}
+_ONES = {"one": 1, "two": 2, "three": 3, "four": 4, "five": 5,
+         "six": 6, "seven": 7, "eight": 8, "nine": 9}
+_COMPOUND_NUMBER = re.compile(
+    r"\b(" + "|".join(_TENS) + r")[-\s](" + "|".join(_ONES) + r")\b", re.IGNORECASE
+)
+
 
 def text_numbers(text: str) -> set[float]:
     """The pool of numbers a rule's literals may legitimately come from.
@@ -163,12 +171,29 @@ def text_numbers(text: str) -> set[float]:
         if re.search(rf"\b{re.escape(word)}\b", body, re.IGNORECASE):
             pool.add(float(value))
 
+    # Compound word numbers. "Top twenty-five stock brokers" is 25, not 20 and 5,
+    # and the tripwire called a correct rule an invention because of it. Found by
+    # auditing the live graph rather than by any test.
+    for m in _COMPOUND_NUMBER.finditer(body):
+        pool.add(float(_TENS[m.group(1).lower()] + _ONES[m.group(2).lower()]))
+
     for m in _NUMBER.finditer(body):
         raw = m.group(0).replace(",", "")
         try:
             pool.add(float(raw))
         except ValueError:
             continue
+
+    # Indian numbering. "Rs. 1 crore" in the text and 10000000 in the rule is a
+    # correct reading, and without this the tripwire calls it an invention --
+    # measured on the live graph, this alone accounted for a large share of the
+    # false flags.
+    for m in re.finditer(r"(\d+(?:\.\d+)?)\s*(crore|lakh|lakhs|cr\b|million|billion)",
+                         text, re.IGNORECASE):
+        n = float(m.group(1))
+        scale = {"crore": 1e7, "cr": 1e7, "lakh": 1e5, "lakhs": 1e5,
+                 "million": 1e6, "billion": 1e9}[m.group(2).lower()]
+        pool.add(n * scale)
 
     # A percentage written "10%" is also legitimately "0.1" in a rule.
     for m in re.finditer(r"(\d+(?:\.\d+)?)\s*(?:%|per\s*cent)", text, re.IGNORECASE):
@@ -324,6 +349,104 @@ def _identifiers(expression: str) -> set[str]:
             continue
         out.add(name)
     return out
+
+
+# ── Lane 1b — what exists() is allowed to ask for ────────────────────────────
+#
+# `exists(x)` means "the firm can produce x". Measured on the first live run of
+# 150 windows against gpt-4o, 40 of 140 rules that went ACTIVE rested on an
+# exists() over a boolean or a number, and every one of them is a type error
+# rather than a style quibble:
+#
+#     exists([early_warning_mechanism])     boolean -- a boolean field ALWAYS
+#                                           exists; the question is whether it
+#                                           is TRUE. The test is tautological
+#                                           and every firm passes it.
+#     exists([conversion_date])             date    -- asks whether a date was
+#                                           recorded, not whether a duty was met
+#
+# The type gate (Step 13) stops two FACTS merging. This stops a rule asking a
+# question that cannot fail, which no other check in the pipeline can see: the
+# expression parses, the numbers are faithful, the audience is right, and the
+# rule is still worthless.
+
+#: What an evidence request may legitimately rest on. `document` is the design's
+#: case ("keep records"); `string` covers "appoint an officer" -- naming who.
+EXISTS_OK = {"document", "string"}
+#: Mechanically wrong, and the correction is unambiguous.
+EXISTS_TAUTOLOGY = {"boolean"}
+#: Wrong, but what was MEANT is not recoverable without reading the clause.
+EXISTS_AMBIGUOUS = {"date", "number"}
+
+_EXISTS_CALL = re.compile(r"\bexists\s*\(\s*([^()]+?)\s*\)", re.IGNORECASE)
+
+
+def exists_check(expression: str, hints: dict[str, Any] | None = None) -> dict[str, Any]:
+    """Whether every exists() rests on something a firm can actually produce.
+
+    Returns {ok, problems, rewrite}. `rewrite` is set only for the boolean case,
+    where `exists(b)` unambiguously meant `b == true` -- the field is there
+    either way and the duty is that it be true. Nothing else is auto-corrected:
+    a date or a number could be a mis-drafted evidence request or a genuine
+    "has this been recorded", and guessing between them is what the review
+    queue is for.
+    """
+    hints = hints or {}
+    problems: list[str] = []
+    rewritten = expression
+
+    for m in _EXISTS_CALL.finditer(expression or ""):
+        token = m.group(1).strip()
+        hint = hints.get(token)
+        data_type = (hint or {}).get("data_type") if isinstance(hint, dict) else None
+        data_type = (data_type or "").strip().lower()
+        if not data_type or data_type in EXISTS_OK:
+            continue
+        if data_type in EXISTS_TAUTOLOGY:
+            problems.append(
+                f"exists({token}) is always true -- {token} is a boolean, so the "
+                f"duty is that it be TRUE, not that the field be present"
+            )
+            rewritten = rewritten.replace(m.group(0), f"{token} == true")
+            continue
+        if data_type in EXISTS_AMBIGUOUS:
+            problems.append(
+                f"exists({token}) asks whether a {data_type} was recorded, which is "
+                f"not a compliance test -- what was meant cannot be recovered here"
+            )
+
+    return {
+        "ok": not problems,
+        "problems": problems,
+        "rewrite": rewritten if rewritten != expression else None,
+        # A tautology that has been rewritten is FIXED, not merely flagged, so it
+        # does not need a human. An ambiguous one does.
+        "needs_review": any("cannot be recovered" in p for p in problems),
+    }
+
+
+def restates_title(title: str, expression: str) -> bool:
+    """An attestable rule whose token merely repeats its own title.
+
+    "annual_inspection_policy -> exists([annual_inspection_policy.annual_
+    inspection_policy])" tells a firm nothing it did not already know from the
+    heading. Reported, never auto-corrected: the wording is circular but the
+    DUTY may still be real, and only the clause says which.
+    """
+    def words(text: str) -> set[str]:
+        return {
+            w for w in re.split(r"[^a-z0-9]+", (text or "").lower())
+            if len(w) > 2 and w not in {"the", "and", "for", "shall", "with", "any"}
+        }
+
+    title_words = words(title)
+    if len(title_words) < 2:
+        return False
+    for m in _EXISTS_CALL.finditer(expression or ""):
+        token_words = words(m.group(1))
+        if token_words and token_words <= title_words:
+            return True
+    return False
 
 
 # ── Lane 2 — modifier cross-check ────────────────────────────────────────────

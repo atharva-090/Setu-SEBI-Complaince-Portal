@@ -21,7 +21,15 @@ for _stream in (sys.stdout, sys.stderr):
         pass
 
 ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT / "tools"))
 sys.path.insert(0, str(ROOT / "services" / "ai-service"))
+
+# Imported for its side effect: it forces mock mode unless SETU_ALLOW_LIVE_LLM=1.
+# Every check in this file is about DETERMINISTIC behaviour -- the unit contract,
+# the three lanes, the closed loop -- and none of it needs a model. Without this
+# the closed-loop assertions silently start calling a real verifier, which both
+# costs money and stops testing the thing they were written to test.
+import corpus_check as _offline  # noqa: F401,E402
 
 from app import fidelity  # noqa: E402
 from app.canonical import fingerprint  # noqa: E402
@@ -270,6 +278,65 @@ def main() -> int:
         )
     finally:
         drafter._verify_mock = real_verify
+
+    # ── lane 1b: what exists() may rest on ────────────────────────────────────
+    section("lane 1b · exists() must rest on something a firm can produce")
+
+    doc = {"r": {"data_type": "document"}}
+    check("exists() on a document is fine", fidelity.exists_check("exists(r)", doc)["ok"])
+    check(
+        "exists() on a string is fine — 'appoint an officer' names a person",
+        fidelity.exists_check("exists(n)", {"n": {"data_type": "string"}})["ok"],
+    )
+    b = fidelity.exists_check("exists(m)", {"m": {"data_type": "boolean"}})
+    check(
+        "exists() on a boolean is REWRITTEN, not merely flagged",
+        b["rewrite"] == "m == true" and not b["ok"],
+        "a boolean field always exists; the duty is that it be TRUE",
+    )
+    check(
+        "and a rewritten tautology does NOT need a human — it is fixed",
+        not b["needs_review"],
+    )
+    dt = fidelity.exists_check("exists(d)", {"d": {"data_type": "date"}})
+    check(
+        "exists() on a date is flagged and left alone",
+        not dt["ok"] and dt["rewrite"] is None and dt["needs_review"],
+        "what was meant is not recoverable without reading the clause",
+    )
+    mixed = fidelity.exists_check(
+        "exists(m) AND days_since(d) <= 30",
+        {"m": {"data_type": "boolean"}, "d": {"data_type": "date"}},
+    )
+    check(
+        "only the exists() is touched; the rest of the expression is untouched",
+        mixed["rewrite"] == "m == true AND days_since(d) <= 30",
+        mixed["rewrite"] or "",
+    )
+    check(
+        "a token with no hint is not guessed at",
+        fidelity.exists_check("exists(unknown)", {})["ok"],
+    )
+    check(
+        "a rule whose token restates its own title is caught",
+        fidelity.restates_title(
+            "annual_inspection_policy",
+            "exists([annual_inspection_policy.annual_inspection_policy])",
+        ),
+    )
+    check(
+        "but naming the artifact is not circular",
+        not fidelity.restates_title(
+            "verification_of_antecedents",
+            "exists([broker_registration.antecedents_verification_document])",
+        ),
+        "the second guard must not swallow legitimate evidence requests",
+    )
+    check(
+        "a one-word title never triggers it",
+        not fidelity.restates_title("audit", "exists([x.audit])"),
+        "too little signal to call circular",
+    )
 
     # ── the modifier output type ──────────────────────────────────────────────
     section("the modifier output type (built at D3, checked here)")
