@@ -59,6 +59,26 @@ class ValidationOut(BaseModel):
     corrected: bool = False
 
 
+class AudienceCandidate(BaseModel):
+    id: int | None = None
+    label: str
+    predicate: str
+
+
+class JudgeAudienceRequest(BaseModel):
+    """Rung 6: reached only for the ambiguous middle rungs 3-5 could not settle."""
+    candidate: AudienceCandidate
+    existing: list[AudienceCandidate] = []
+
+
+class JudgeAudienceResponse(BaseModel):
+    same: bool
+    match_index: int = -1
+    confidence: float = 0.0
+    why: str | None = None
+    provider: str = "mock"
+
+
 class ComposeRequest(BaseModel):
     """Step 12 needs the SAME normalisation Step 10 uses, or a modifier-narrowed
     audience and a heading-narrowed one describing the same set of firms would
@@ -74,6 +94,17 @@ class ComposeResponse(BaseModel):
     conditions: list[str] = []
     predicate_hash: str | None = None
     error: str | None = None
+
+
+class DefinitionOut(BaseModel):
+    """Step 13a's input. A definition is not a rule: it says how one fact is
+    computed from others, and registering it is what stops the intake form
+    asking a firm for a number it should be calculating."""
+    term: str
+    expression: str = ""
+    meaning: str = ""
+    inputs: dict[str, dict] = {}
+    confidence: float = 0.0
 
 
 class ModifierOut(BaseModel):
@@ -234,6 +265,7 @@ class WindowResult(BaseModel):
     rules: list[RuleOut] = []
     error: str | None = None
     modifiers: list[ModifierOut] = []  # Step 12's input
+    definitions: list[DefinitionOut] = []  # Step 13a's input
 
 
 class ExtractResponse(BaseModel):

@@ -22,6 +22,7 @@ import {
   cosineDistance,
   recency,
 } from '../src/ingestion/coldstart.engine';
+import { differByIndexOnly } from '../src/ingestion/coldstart.engine';
 import { typeGate, typesCompatible, unitsCompatible } from '../src/ingestion/type-gate';
 
 let passed = 0;
@@ -255,9 +256,13 @@ async function main() {
     check('and it says so, rather than reporting a clean run', noVectors.stats.withVectors === 0);
   }
   {
+    // Non-indexed names deliberately: `t0`..`t39` differ only by a trailing
+    // number, which the index guard below correctly refuses to merge.
+    const names = ['audit', 'report', 'policy', 'register', 'certificate', 'return',
+      'statement', 'disclosure', 'record', 'filing'];
     const many = cluster(
       Array.from({ length: 500 }, (_, i) =>
-        mention({ token: `t${i % 40}`, embedding: vecAt((i % 40) * 0.08) }),
+        mention({ token: `${names[i % 10]}_alpha`, embedding: vecAt((i % 40) * 0.08) }),
       ),
     );
     check(
@@ -267,6 +272,43 @@ async function main() {
     );
     check('and the biggest cluster is reported first', many.clusters[0].mentions >= many.clusters[many.clusters.length - 1].mentions);
   }
+
+  // ── the two bugs a live consolidation run found ───────────────────────────
+  section('cold start · what running it over a real register exposed');
+
+  check(
+    'names differing only by an index are NOT the same fact',
+    differByIndexOnly('allocation_to_client_1', 'allocation_to_client_2'),
+    'three client allocations sit on top of each other in embedding space',
+  );
+  check(
+    'and the clusterer keeps them apart',
+    cluster([
+      mention({ token: 'allocation_to_client_1', embedding: vecAt(0) }),
+      mention({ token: 'allocation_to_client_2', embedding: vecAt(0.001) }),
+    ]).clusters.length === 2,
+    'meaning similarity cannot see a digit; the name can',
+  );
+  check(
+    'a duplicate-naming artefact still merges',
+    !differByIndexOnly('audit_report', 'audit_report_2'),
+    'there the digit is a collision, not an index',
+  );
+  check(
+    'an extraneous month makes a name WORSE, not better',
+    clarity('internal_audit_report_submission_date') >
+      clarity('internal_audit_report_submission_date_september'),
+    'rewarding words linearly made the longest name always win',
+  );
+  check(
+    'and so does a bare year or index',
+    clarity('net_worth') > clarity('net_worth_2024') && clarity('audit_date') > clarity('audit_date_3'),
+  );
+  check(
+    'but a genuinely more descriptive name still wins',
+    clarity('last_audit_date') > clarity('aud_dt'),
+    'the cap must not undo the original point',
+  );
 
   console.log('');
   if (failures.length) {

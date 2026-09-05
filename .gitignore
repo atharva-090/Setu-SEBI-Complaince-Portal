@@ -39,3 +39,6 @@ demo-video/tools/hfd/
 # Working notes, not part of the build or the harnesses.
 Understanding Concepts and functional finalization/
 Setu — Internal Pipeline Deep-Dive v2*.json
+
+# Working DB snapshots taken before a destructive re-point. Data, not code.
+.snapshots/

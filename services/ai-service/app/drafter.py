@@ -25,6 +25,7 @@ from typing import Any
 
 from .config import settings
 from . import fidelity
+from . import usage
 from .llm import _client
 
 EMBED_DIM = 1536
@@ -40,10 +41,25 @@ Output ONLY via the `emit_rules` function.
 - Copy numbers and units verbatim; never invent values. Convert word-numbers to digits
   ("six months" -> months_since(x) <= 6). Periods: half-yearly = 6 months, quarterly =
   3 months, annually = 12 months.
-- Purely procedural/definitional text, or duties addressed to SEBI/exchanges rather than
-  the regulated entity: emit NO rule for it.
+WHAT NOT TO EMIT -- emitting NOTHING is a correct and common answer.
+  Emit no rule for: recitals and background ("this circular consolidates..."),
+  statements of intent, definitions, procedural narration, anything addressed to
+  SEBI or the exchanges rather than the regulated firm, and any sentence that
+  merely CITES another paragraph without imposing a duty of its own.
+  On a real circular a large minority of clauses produce no rule at all. A rule
+  invented from boilerplate is worse than a missing one: it becomes an
+  obligation a firm is told it owes.
+
 - If the clause is a proof-style duty with nothing computable (maintain/appoint/formulate
   a policy, keep records), emit obligation_type "attestable" with exists(<token>).
+  exists(x) means "the firm can PRODUCE x", so x must be a document the firm
+  holds, or the name of a person or thing it must supply. NEVER wrap exists()
+  around a boolean, a date or a number: a boolean field always exists, so the
+  test can never fail. If the duty is that something be TRUE, write
+  <token> == true and give the token data_type "boolean".
+- Do not restate the title as the token. "annual_inspection_policy ->
+  exists(annual_inspection_policy)" tells the firm nothing; name the artifact
+  it must actually hold.
 - For each token used, give attribute_hints[token] = {data_type, meaning} — data_type in
   {date, number, boolean, string, document}, meaning = one line stating what the broker
   must supply.
@@ -150,8 +166,27 @@ For each modifier report:
   scope_note  when condition_kind is "scope", one line saying what it narrows to
   value       for override_value only: the replacing value
 
+MOST CLAUSES ARE NOT MODIFIERS. Measured on a real SEBI corpus, roughly one
+clause in seventy says anything about how another clause applies, and only a
+handful of those narrow by a property of the firm. The expected answer is an
+empty list. On the first live run this lane returned 164 modifiers from 150
+clauses -- around eighty times what the text contains -- and almost all of them
+were ordinary cross-references.
+
+A cross-reference is NOT a modifier. "As specified in para 45, brokers shall
+report daily", "in terms of paragraph 8.7", "the format at Annexure B" all cite
+another paragraph while imposing (or not imposing) a duty of their own. A
+modifier CHANGES the application of the paragraph it names: who it covers, or
+what value it sets. If you cannot say which of the four effects it has and what
+condition it imposes, it is not a modifier.
+
+Do not report a modifier whose target is a percentage, a monetary amount, an
+Annexure or Form, or a paragraph of an Act, Regulation or Schedule -- those are
+quantities and external references, not paragraphs of this circular.
+
 Report NOTHING if the clause imposes a duty. Being wrong that a duty is a modifier
-loses the duty entirely; being wrong the other way costs nothing."""
+loses the duty entirely; being wrong the other way floods assembly with targets
+that do not resolve."""
 
 EMIT_MODIFIERS_TOOL = {
     "type": "function",
@@ -311,13 +346,19 @@ def _draft_mock_modifiers(window_text: str, clause_no: str | None) -> list[dict]
 
 
 def _draft_real_modifiers(window_text: str, clause_no: str | None) -> list[dict]:
+    # The SMALL model, deliberately. This is a near-always-empty classification
+    # -- measured, 2 of 34 candidate sentences in the whole SEBI corpus are real
+    # firm-property modifiers -- and it re-sends the whole window plus the
+    # property vocabulary on every call. On the master circular it is a larger
+    # share of input tokens than drafting itself, for output that is usually
+    # "[]". Quality-critical work stays on the large model; this does not.
     from .audience import FIRM_PROPERTIES
 
     props = json.dumps(
         [{k: v for k, v in p.items() if k != "implies"} for p in FIRM_PROPERTIES]
     )
     resp = _client().chat.completions.create(
-        model=settings.llm_model_large,
+        model=settings.llm_model_small,
         temperature=0,
         messages=[
             {"role": "system", "content": MODIFIER_SYSTEM_PROMPT},
@@ -329,6 +370,7 @@ def _draft_real_modifiers(window_text: str, clause_no: str | None) -> list[dict]
         tools=[EMIT_MODIFIERS_TOOL],
         tool_choice={"type": "function", "function": {"name": "emit_modifiers"}},
     )
+    usage.record(settings.llm_model_small, getattr(resp, "usage", None))
     calls = resp.choices[0].message.tool_calls or []
     if not calls:
         return []
@@ -343,6 +385,143 @@ def draft_modifiers(window_text: str, clause_no: str | None) -> list[dict]:
     if provider() == "mock":
         return _draft_mock_modifiers(window_text, clause_no)
     return _draft_real_modifiers(window_text, clause_no)
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Step 13a's input — definitions
+#
+# A definition is not a rule. "net worth means paid-up capital plus free reserves
+# minus accumulated losses" imposes no duty; it says how one fact is COMPUTED
+# from others. Emitting it as a rule would put "is your net worth correct?" on a
+# firm's dashboard, which is not a question.
+#
+# What it prevents is subtler and worse: without the definition, the funnel meets
+# `net_worth` in some later rule and creates it as an ordinary attribute -- so
+# the intake form ASKS the broker for their net worth instead of computing it
+# from figures they have already supplied. Definitions resolve first precisely so
+# that cannot happen.
+# ─────────────────────────────────────────────────────────────────────────────
+
+DEFINITION_SYSTEM_PROMPT = """You read ONE clause and decide whether it DEFINES a term.
+
+A definition says what something MEANS or how it is CALCULATED:
+  "net worth means paid-up capital plus free reserves minus accumulated losses"
+  "'active client' shall mean a client who has traded at least once in the
+   preceding twelve months"
+
+It is NOT a definition if it imposes a duty ("shall maintain a net worth of Rs. 5
+crore" is a RULE about net worth, not a definition of it), and not if it merely
+names something without saying how it is computed or what it covers.
+
+For a definition report:
+  term        the thing being defined, as a snake_case token
+  expression  how it is computed, using the input tokens and + - * / ( ) only,
+              when the clause gives a calculation
+  inputs      every token the expression reads, with a data_type and a meaning
+  meaning     one line stating what the term denotes
+
+If the clause defines a term but gives NO calculation (a pure descriptive
+definition), give the meaning and leave `expression` empty. That is common and
+useful: it still stops the term being invented twice under different names.
+
+Report NOTHING for a clause that imposes a duty. Being wrong that a duty is a
+definition LOSES the duty."""
+
+EMIT_DEFINITIONS_TOOL = {
+    "type": "function",
+    "function": {
+        "name": "emit_definitions",
+        "description": "Emit the terms this clause defines.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "definitions": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "term": {"type": "string"},
+                            "expression": {"type": "string"},
+                            "meaning": {"type": "string"},
+                            "inputs": {
+                                "type": "object",
+                                "additionalProperties": {
+                                    "type": "object",
+                                    "properties": {
+                                        "data_type": {
+                                            "enum": ["date", "number", "boolean", "string", "document"]
+                                        },
+                                        "meaning": {"type": "string"},
+                                        "unit": {"type": "string"},
+                                    },
+                                    "required": ["data_type", "meaning"],
+                                },
+                            },
+                            "confidence": {"type": "number"},
+                        },
+                        "required": ["term", "meaning", "confidence"],
+                    },
+                }
+            },
+            "required": ["definitions"],
+        },
+    },
+}
+
+# The mock lane. "X means/shall mean Y" is the shape the corpus actually uses;
+# a calculation is only claimed when the text contains arithmetic words.
+_DEFINITION_LEAD = re.compile(
+    r"[\"\u201c\u2018]?([A-Za-z][\w\s\-/&()]{2,60}?)[\"\u201d\u2019]?\s+"
+    r"(?:shall\s+mean|means|shall\s+have\s+the\s+meaning|is\s+defined\s+as|"
+    r"refers?\s+to)\s+([^.;]{10,400})",
+    re.IGNORECASE,
+)
+_ARITHMETIC = re.compile(r"\b(plus|minus|less|sum of|aggregate of|total of|net of)\b", re.I)
+
+
+def _draft_mock_definitions(window_text: str, clause_no: str | None) -> list[dict]:
+    body = re.sub(r"\s+", " ", window_text.split("\n", 1)[-1])
+    out: list[dict] = []
+    for m in _DEFINITION_LEAD.finditer(body):
+        term = _slug(m.group(1), max_words=4)
+        if not term:
+            continue
+        out.append({
+            "term": term,
+            # The mock does not attempt to build an expression: parsing English
+            # arithmetic into a formula is precisely the judgement a model is
+            # for, and a wrong formula is worse than none.
+            "expression": "",
+            "meaning": m.group(2).strip()[:200],
+            "inputs": {},
+            "confidence": 0.4,
+            "has_arithmetic": bool(_ARITHMETIC.search(m.group(2))),
+        })
+        break
+    return out
+
+
+def _draft_real_definitions(window_text: str, clause_no: str | None) -> list[dict]:
+    resp = _client().chat.completions.create(
+        model=settings.llm_model_large,
+        temperature=0,
+        messages=[
+            {"role": "system", "content": DEFINITION_SYSTEM_PROMPT},
+            {"role": "user", "content": f"CLAUSE {clause_no or ''}\n{window_text}"},
+        ],
+        tools=[EMIT_DEFINITIONS_TOOL],
+        tool_choice={"type": "function", "function": {"name": "emit_definitions"}},
+    )
+    usage.record(settings.llm_model_large, getattr(resp, "usage", None))
+    calls = resp.choices[0].message.tool_calls or []
+    return json.loads(calls[0].function.arguments).get("definitions") or [] if calls else []
+
+
+def draft_definitions(window_text: str, clause_no: str | None) -> list[dict]:
+    """Step 13a's input: what this clause DEFINES, as opposed to what it requires."""
+    if provider() == "mock":
+        return _draft_mock_definitions(window_text, clause_no)
+    return _draft_real_definitions(window_text, clause_no)
 
 
 def provider() -> str:
@@ -366,6 +545,7 @@ def _draft_real(window_text: str, clause_no: str | None) -> list[dict[str, Any]]
             tools=[EMIT_RULES_TOOL],
             tool_choice={"type": "function", "function": {"name": "emit_rules"}},
         )
+        usage.record(settings.llm_model_large, getattr(resp, "usage", None))
         calls = resp.choices[0].message.tool_calls or []
         if not calls:
             continue
@@ -535,6 +715,7 @@ def embed_texts(texts: list[str]) -> tuple[list[list[float]], bool]:
     if provider() == "mock":
         return [_pseudo_embedding(t) for t in texts], True
     resp = _client().embeddings.create(model=settings.embedding_model, input=texts)
+    usage.record(settings.embedding_model, getattr(resp, "usage", None))
     return [item.embedding for item in resp.data], False
 
 
@@ -616,6 +797,7 @@ def _verify_real(expression: str, clause_text: str, complaint: str) -> dict[str,
         tools=[VERIFY_TOOL],
         tool_choice={"type": "function", "function": {"name": "adjudicate"}},
     )
+    usage.record(settings.llm_model_large, getattr(resp, "usage", None))
     calls = resp.choices[0].message.tool_calls or []
     return json.loads(calls[0].function.arguments) if calls else {}
 

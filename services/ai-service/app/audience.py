@@ -22,6 +22,7 @@ import re
 from typing import Any
 
 from .config import settings
+from . import usage
 from .llm import _client
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -237,6 +238,7 @@ def _resolve_real(title: str | None, clauses: list[str]) -> dict[str, Any]:
         tools=[EMIT_AUDIENCE_TOOL],
         tool_choice={"type": "function", "function": {"name": "emit_audience"}},
     )
+    usage.record(settings.llm_model_large, getattr(resp, "usage", None))
     calls = resp.choices[0].message.tool_calls or []
     if not calls:
         return {}
@@ -571,7 +573,12 @@ def _classify_real(
     heading: str, ancestry: list[str], opening: str, parent_predicate: str | None
 ) -> dict[str, Any]:
     resp = _client().chat.completions.create(
-        model=settings.llm_model_large,
+        # The SMALL model. One heading is a short WHO-or-WHAT judgement against a
+        # fixed property list, and there are 365 of them on the master circular
+        # against one Pattern C call -- so this is where the heading budget goes.
+        # Pattern C, which every clause in the document inherits from, stays on
+        # the large model.
+        model=settings.llm_model_small,
         temperature=0,
         messages=[
             {"role": "system", "content": HEADING_SYSTEM_PROMPT},
@@ -583,6 +590,7 @@ def _classify_real(
         tools=[EMIT_HEADING_TOOL],
         tool_choice={"type": "function", "function": {"name": "emit_heading_audience"}},
     )
+    usage.record(settings.llm_model_small, getattr(resp, "usage", None))
     calls = resp.choices[0].message.tool_calls or []
     return json.loads(calls[0].function.arguments) if calls else {}
 

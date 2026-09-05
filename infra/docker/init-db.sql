@@ -69,7 +69,10 @@ CREATE TABLE IF NOT EXISTS audiences (
   state           TEXT NOT NULL DEFAULT 'PROPOSED',   -- PROPOSED|APPROVED
   confidence      REAL,
   approved_by     TEXT,
-  approved_at     TIMESTAMPTZ
+  approved_at     TIMESTAMPTZ,
+  -- Ladder rungs 5/6: meaning similarity when the exact rungs miss.
+  embedding       vector(1536),
+  embedded_text   TEXT
 );
 
 -- The lattice is a DAG, not a tree: one audience can be narrower than several.
@@ -109,6 +112,21 @@ CREATE TABLE IF NOT EXISTS obligations (
   embedding       vector(1536),
   created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at      TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+-- formulas — Step 13a. A definition is not a rule: it says how one fact is
+-- COMPUTED from others, and `attributes.is_derived` is what stops the intake
+-- form asking a firm for a number it should be calculating.
+CREATE TABLE IF NOT EXISTS formulas (
+  id            SERIAL PRIMARY KEY,
+  attribute_id  INTEGER NOT NULL UNIQUE REFERENCES attributes(id) ON DELETE CASCADE,
+  expression    TEXT NOT NULL,
+  input_ids     INTEGER[] NOT NULL DEFAULT '{}',
+  source_doc    TEXT,
+  source_clause TEXT,
+  confidence    REAL,
+  state         TEXT NOT NULL DEFAULT 'REVIEW',
+  created_at    TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
 -- obligation_versions — lineage
@@ -295,6 +313,8 @@ CREATE INDEX IF NOT EXISTS idx_obligations_embedding_hnsw
   ON obligations USING hnsw (embedding vector_cosine_ops);
 
 -- attribute resolution lanes
+CREATE INDEX IF NOT EXISTS idx_formulas_attribute        ON formulas (attribute_id);
+CREATE INDEX IF NOT EXISTS idx_attributes_derived        ON attributes (is_derived) WHERE is_derived;
 CREATE INDEX IF NOT EXISTS idx_attributes_canonical_name ON attributes (canonical_name);
 CREATE INDEX IF NOT EXISTS idx_attributes_aliases_gin     ON attributes USING gin (aliases);
 
@@ -314,6 +334,7 @@ CREATE INDEX IF NOT EXISTS idx_source_clauses_doc ON source_clauses (doc_id);
 CREATE INDEX IF NOT EXISTS idx_obligations_audience       ON obligations (audience_id);
 CREATE INDEX IF NOT EXISTS idx_audience_edges_broader     ON audience_edges (broader_id);
 CREATE INDEX IF NOT EXISTS idx_audiences_state            ON audiences (state);
+CREATE INDEX IF NOT EXISTS idx_audiences_embedding_hnsw   ON audiences USING hnsw (embedding vector_cosine_ops);
 CREATE INDEX IF NOT EXISTS idx_rule_assertions_replay     ON rule_assertions (effective_from, seq);
 CREATE INDEX IF NOT EXISTS idx_rule_assertions_identity   ON rule_assertions (identity_hash);
 CREATE INDEX IF NOT EXISTS idx_rule_assertions_doc        ON rule_assertions (doc_id);

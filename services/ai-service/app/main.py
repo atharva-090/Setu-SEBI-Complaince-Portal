@@ -16,6 +16,7 @@ from concurrent.futures import ThreadPoolExecutor
 from fastapi import Depends, FastAPI, File, Form, HTTPException, Header, UploadFile
 
 from . import audience as audience_mod
+from . import usage as usage_mod
 from . import canonical as canonical_mod
 from . import drafter as drafter_mod
 from . import judge as judge_mod
@@ -37,6 +38,7 @@ from .schemas import (
     EmbedResponse,
     ComposeRequest,
     ComposeResponse,
+    DefinitionOut,
     ExtractRequest,
     ExtractResponse,
     ModifierOut,
@@ -45,6 +47,8 @@ from .schemas import (
     HeadingAudienceResponse,
     JudgeAttributeRequest,
     JudgeAttributeResponse,
+    JudgeAudienceRequest,
+    JudgeAudienceResponse,
     ParsePdfResponse,
     RuleOut,
     ValidationOut,
@@ -145,6 +149,29 @@ async def fingerprint_rules(req: FingerprintRequest) -> FingerprintResponse:
 
 
 @app.post(
+    "/judge/audience",
+    response_model=JudgeAudienceResponse,
+    dependencies=[Depends(require_key)],
+)
+def judge_audience_endpoint(req: JudgeAudienceRequest):
+    """Step 10, rung 6 — are these the same set of firms?
+
+    Asked about the TEST, never the label, and only after rungs 3, 4 and 5 have
+    each failed to settle it."""
+    verdict = judge_mod.judge_audience(
+        req.candidate.model_dump(),
+        [c.model_dump() for c in req.existing],
+    )
+    return JudgeAudienceResponse(
+        same=bool(verdict.get("same")),
+        match_index=int(verdict.get("match_index", -1)),
+        confidence=float(verdict.get("confidence") or 0.0),
+        why=verdict.get("why"),
+        provider=str(verdict.get("provider") or "mock"),
+    )
+
+
+@app.post(
     "/audience/compose",
     response_model=ComposeResponse,
     dependencies=[Depends(require_key)],
@@ -210,6 +237,21 @@ def heading_audience_endpoint(req: HeadingAudienceRequest):
     return HeadingAudienceResponse(
         doc_id=req.doc_id, provider=audience_mod.provider(), results=results
     )
+
+
+@app.get("/usage", dependencies=[Depends(require_key)])
+def usage_endpoint():
+    """What this run has actually spent, per model.
+
+    Every cost figure written down before this existed was arithmetic on
+    character counts. This is the measured one."""
+    return usage_mod.report()
+
+
+@app.post("/usage/reset", dependencies=[Depends(require_key)])
+def usage_reset_endpoint():
+    usage_mod.reset()
+    return {"reset": True}
 
 
 @app.post("/parse-pdf", response_model=ParsePdfResponse, dependencies=[Depends(require_key)])
@@ -302,14 +344,30 @@ def extract_endpoint(req: ExtractRequest):
             # the verifier cheap and high-signal.
             typ = fidelity_mod.type_check(expression, hints)
             fid = fidelity_mod.number_fidelity(expression, window.window_text or "")
+
+            # Lane 1b -- what exists() may rest on. A boolean is rewritten,
+            # because exists(b) unambiguously meant b == true; anything else is
+            # flagged and left alone for a human.
+            ex = fidelity_mod.exists_check(expression, hints)
+            if ex["rewrite"]:
+                expression = ex["rewrite"]
+                ast = parse_expression(expression)
+            vacuous = fidelity_mod.restates_title(str(d.get("title", "")), expression)
             validation = ValidationOut(
-                type_ok=typ["ok"],
-                type_problems=typ["problems"],
+                type_ok=typ["ok"] and not ex["problems"],
+                type_problems=typ["problems"] + ex["problems"]
+                + (["the expression only restates the rule's own title"] if vacuous else []),
                 numbers_ok=fid["ok"],
                 unexplained=fid["unexplained"],
                 pool=fid["pool"][:20],
                 complaint=fid.get("complaint"),
             )
+            # A rule that cannot fail, or that only repeats its own title, must
+            # not go live on a model's own say-so. Both were reported at
+            # confidence 0.90 on the first live run.
+            if ex["needs_review"] or vacuous:
+                confidence = min(confidence, 0.4)
+
             if not fid["ok"]:
                 verdict = drafter_mod.verify_number(
                     expression,
@@ -354,10 +412,26 @@ def extract_endpoint(req: ExtractRequest):
         except Exception as exc:  # a modifier miss must never lose the rules
             log.warning("modifier draft failed for clause %s: %s", window.clause_no, exc)
             mods = []
+        try:
+            defs = drafter_mod.draft_definitions(window.window_text, window.clause_no)
+        except Exception as exc:  # nor must a definition miss
+            log.warning("definition draft failed for clause %s: %s", window.clause_no, exc)
+            defs = []
         return WindowResult(
             idx=window.idx,
             clause_no=window.clause_no,
             rules=rules,
+            definitions=[
+                DefinitionOut(
+                    term=str(d.get("term") or ""),
+                    expression=str(d.get("expression") or ""),
+                    meaning=str(d.get("meaning") or "")[:400],
+                    inputs=d.get("inputs") or {},
+                    confidence=float(d.get("confidence") or 0.0),
+                )
+                for d in defs
+                if d.get("term")
+            ],
             modifiers=[
                 ModifierOut(
                     targets=str(m.get("targets") or ""),

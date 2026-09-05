@@ -19,12 +19,12 @@ import { AiAudience, AiClientService } from './ai-client.service';
  *
  *   RUNG 3  exact match on the normalised test        → reuse
  *   RUNG 4  logical implication                       → reuse, or nest
- *   RUNG 5  meaning similarity  ┐ not built — see resolve() note
- *   RUNG 6  AI judge            ┘
+ *   RUNG 5  meaning similarity                          → shortlist ≤3
+ *   RUNG 6  AI judge on that shortlist                  → reuse, or fall through
  *   RUNG 7  new audience                              → create (needs approval)
  */
 
-export type Rung = 'exact' | 'implication' | 'created';
+export type Rung = 'exact' | 'implication' | 'similarity' | 'created';
 
 export interface AudienceResolution {
   audience: AudienceRecord;
@@ -60,6 +60,9 @@ export interface AudienceStore {
   ): Promise<AudienceRecord>;
   addAlias(id: number, alias: string): Promise<void>;
   link(narrowerId: number, broaderId: number, derivation: string): Promise<void>;
+  /** Rung 5. Optional so a test store can omit it and exercise rungs 3/4/7
+   *  alone — which is exactly how the ladder behaved before these rungs. */
+  nearest?(predicate: string, maxDistance: number, limit: number): Promise<AudienceRecord[]>;
 }
 
 const NUMERIC_OPS = new Set(['>', '>=', '<', '<=']);
@@ -133,6 +136,10 @@ export function conditionsOf(predicate: string): string[] {
 /** Rung 7 creates an audience, but a NEW audience is a human decision. Anything
  *  below this stays unapproved even when the ladder is confident about it. */
 export const AUTO_APPROVE_CONFIDENCE = 0.8;
+/** Rung 5: how close two audience descriptions must be to reach the judge. */
+export const SIMILARITY_MAX = 0.35;
+/** Rung 6 will not merge on a hesitant answer. */
+export const JUDGE_MIN_CONFIDENCE = 0.7;
 
 @Injectable()
 export class AudienceResolverService {
@@ -180,11 +187,23 @@ export class AudienceResolverService {
   }
 
   /**
-   * The ladder itself. Rungs 5 and 6 (meaning similarity, then an AI judge on
-   * ≤3 borderline candidates) are NOT built: they need an embedding per
-   * audience, and with Pattern C alone the register holds a handful of nodes
-   * that rungs 3 and 4 settle exactly. They become necessary when D2 starts
-   * minting chapter audiences phrased with different properties.
+   * The ladder itself.
+   *
+   * Rungs 3 and 4 compare TESTS and are exact — they prove sameness rather than
+   * guessing it, and they need no vector at all. Rungs 5 and 6 exist for the
+   * case neither can see: the model phrased the same group using a DIFFERENT
+   * property, so the strings differ and neither implies the other.
+   *
+   * D2 measured that rungs 3 and 4 settled all 24 chapter audiences alone,
+   * because composition happens in code against a fixed vocabulary. That holds
+   * exactly as long as the vocabulary is fixed — and stops holding the moment a
+   * live model is free to name a new property, which is what the gpt-4o run
+   * does. Hence these rungs.
+   *
+   * ⚠️ Rung 6 can MERGE two groups of firms, which is the duplicate-branch
+   * failure in reverse: one group inherits another's obligations and nothing
+   * downstream detects it. So the judge is asked a narrow question about the
+   * TEST, never the name, and its "different" answer is the safe default.
    */
   async resolve(
     candidate: {
@@ -242,6 +261,42 @@ export class AudienceResolverService {
       if (relation === 'broader') broaderThan.push(other.id);
     }
 
+    // ── RUNG 5 — meaning similarity ─────────────────────────────────────────
+    // Only reached when both exact rungs failed. It does not decide anything: it
+    // produces a SHORTLIST for rung 6, because a distance is evidence that two
+    // audiences might be the same and never proof.
+    const shortlist = await store.nearest?.(candidate.predicate, SIMILARITY_MAX, 3);
+    if (shortlist && shortlist.length) {
+      // ── RUNG 6 — the judge, on ≤3 candidates ──────────────────────────────
+      const verdict = await this.ai.judgeAudience(
+        { label: candidate.label, predicate: candidate.predicate },
+        shortlist.map((a) => ({ id: a.id, label: a.label, predicate: a.predicate })),
+      );
+      if (
+        verdict.same &&
+        verdict.match_index >= 0 &&
+        verdict.match_index < shortlist.length &&
+        verdict.confidence >= JUDGE_MIN_CONFIDENCE
+      ) {
+        const hit = shortlist[verdict.match_index];
+        this.log.log(
+          `rung 6 merged "${candidate.label}" into "${hit.label}" ` +
+            `(${verdict.confidence.toFixed(2)}): ${verdict.why ?? ''}`,
+        );
+        await store.addAlias(hit.id, candidate.label);
+        return {
+          audience: hit,
+          rung: 'similarity',
+          broaderThan: [],
+          narrowerThan: [],
+          // NOT 1. Rungs 3 and 4 PROVE sameness; this one was judged, and the
+          // difference has to survive into the record.
+          confidence: verdict.confidence,
+          needsApproval: verdict.confidence < AUTO_APPROVE_CONFIDENCE,
+        };
+      }
+    }
+
     // ── RUNG 7 — a new audience ──────────────────────────────────────────────
     const created = await store.create({
       label: candidate.label,
@@ -294,13 +349,49 @@ export class AudienceResolverService {
           state:
             (row.confidence ?? 0) >= AUTO_APPROVE_CONFIDENCE ? 'APPROVED' : 'PROPOSED',
         });
-        return this.audiences.save(entity);
+        const created = await this.audiences.save(entity);
+        // Embedded IMMEDIATELY, like a new attribute. An audience created and
+        // not embedded is invisible to rung 5, so the very next differently
+        // phrased heading creates a duplicate of it — the failure these rungs
+        // exist to prevent, reintroduced by an ordering slip.
+        try {
+          const text = `${row.label}. ${row.predicate}`;
+          const { embeddings } = await this.ai.embed([text]);
+          const vector = embeddings[0];
+          if (vector) {
+            await this.audiences.query(
+              `UPDATE audiences SET embedding = $2::vector, embedded_text = $3 WHERE id = $1`,
+              [created.id, JSON.stringify(vector), text],
+            );
+          }
+        } catch (err) {
+          // A failed embedding must not lose the audience. It degrades rung 5
+          // for this row and nothing else.
+          this.log.warn(`audience ${created.id} not embedded: ${(err as Error).message}`);
+        }
+        return created;
       },
       addAlias: async (id, alias) => {
         const row = await this.audiences.findOneBy({ id });
         if (!row || !alias || row.aliases.includes(alias)) return;
         row.aliases = [...row.aliases, alias];
         await this.audiences.save(row);
+      },
+      nearest: async (predicate, maxDistance, limit) => {
+        const { embeddings } = await this.ai.embed([predicate]);
+        const vector = embeddings[0];
+        if (!vector) return [];
+        const rows: { id: number }[] = await this.audiences.query(
+          `SELECT id, (embedding <=> $1::vector) AS distance
+             FROM audiences
+            WHERE embedding IS NOT NULL
+              AND (embedding <=> $1::vector) <= $2
+            ORDER BY embedding <=> $1::vector
+            LIMIT $3`,
+          [JSON.stringify(vector), maxDistance, limit],
+        );
+        if (!rows.length) return [];
+        return this.audiences.findByIds(rows.map((r) => r.id));
       },
       link: async (narrowerId, broaderId, derivation) => {
         const existing = await this.edges.findOneBy({ narrowerId, broaderId });

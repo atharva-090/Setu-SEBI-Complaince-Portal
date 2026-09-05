@@ -11,7 +11,13 @@ export type EdgeType =
   | 'supersedes'
   | 'split_of'
   | 'depends_on'
-  | 'shared_evidence';
+  | 'shared_evidence'
+  /** Step 12's `override_value`: a stricter rule for a narrower group that
+   *  REPLACES a general one for that group, without amending it. All brokers
+   *  keep the 180-day rule; QSBs get a 90-day rule that overrides it, and a
+   *  QSB's dashboard shows only the 90-day version with the original one click
+   *  away. Distinct from `amends`, which changes the rule for everyone. */
+  | 'overrides';
 /** Step 15's five verdicts. */
 export type FilingVerdict =
   | 'restatement'
