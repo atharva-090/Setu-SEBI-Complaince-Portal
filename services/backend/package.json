@@ -7,7 +7,18 @@
     "start": "nest start",
     "start:dev": "nest start --watch",
     "start:prod": "node dist/main.js",
-    "lint": "eslint \"src/**/*.ts\" --fix"
+    "lint": "eslint \"src/**/*.ts\" --fix",
+    "test:m3": "ts-node --transpile-only test/m3-attribute-funnel.ts",
+    "test:c1": "ts-node --transpile-only test/c1-schema.ts",
+    "test:pattern-c": "ts-node --transpile-only test/pattern-c-audience.ts",
+    "test:fingerprint": "ts-node --transpile-only test/fingerprint-wiring.ts",
+    "test:filing": "ts-node --transpile-only test/filing.ts",
+    "test:consistency": "ts-node --transpile-only test/consistency.ts",
+    "test:links": "ts-node --transpile-only test/links.ts",
+    "test:pattern-a": "ts-node --transpile-only test/pattern-a.ts",
+    "test:assembly": "ts-node --transpile-only test/assembly.ts",
+    "test:type-gate": "ts-node --transpile-only test/type-gate.ts",
+    "test:coldstart": "ts-node --transpile-only test/type-gate.ts"
   },
   "dependencies": {
     "@nestjs/common": "^10.4.4",
@@ -27,7 +38,8 @@
     "typeorm": "^0.3.20",
     "typeorm-naming-strategies": "^4.1.0",
     "class-validator": "^0.14.1",
-    "class-transformer": "^0.5.1"
+    "class-transformer": "^0.5.1",
+    "mongodb": "^6.9.0"
   },
   "devDependencies": {
     "@nestjs/cli": "^10.4.5",
@@ -37,6 +49,7 @@
     "@types/passport-jwt": "^4.0.1",
     "ts-node": "^10.9.2",
     "tsconfig-paths": "^4.2.0",
-    "typescript": "^5.6.2"
+    "typescript": "^5.6.2",
+    "@types/multer": "^1.4.12"
   }
 }

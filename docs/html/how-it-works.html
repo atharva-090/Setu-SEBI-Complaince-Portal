@@ -1,0 +1,1573 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Setu — How It Works</title>
+<style>
+  :root {
+    --ground: #F7F6F3;
+    --panel: #FFFFFF;
+    --panel-2: #F1EFEA;
+    --ink: #1A1D1A;
+    --ink-soft: #454A44;
+    --muted: #6B7069;
+    --rule: #D9D7D0;
+    --rule-strong: #B9B7AE;
+    --accent: #0F5257;
+    --accent-ink: #0B3C40;
+    --accent-soft: #E2EDEC;
+    --brass: #8A6A20;
+    --brass-soft: #F3EBDB;
+    --stop: #A03A2B;
+    --stop-soft: #F6E5E1;
+    --mono: ui-monospace, "SF Mono", "Cascadia Mono", Menlo, Consolas, "Liberation Mono", monospace;
+    --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --ground: #131614; --panel: #1A1E1C; --panel-2: #212623;
+      --ink: #E9EAE5; --ink-soft: #BCC0B9; --muted: #878C85;
+      --rule: #2C312E; --rule-strong: #3D443F;
+      --accent: #58AEB2; --accent-ink: #8FCBCE; --accent-soft: #16302F;
+      --brass: #C9A24A; --brass-soft: #2B2517;
+      --stop: #D98070; --stop-soft: #331F1B;
+    }
+  }
+  :root[data-theme="dark"] {
+    --ground: #131614; --panel: #1A1E1C; --panel-2: #212623;
+    --ink: #E9EAE5; --ink-soft: #BCC0B9; --muted: #878C85;
+    --rule: #2C312E; --rule-strong: #3D443F;
+    --accent: #58AEB2; --accent-ink: #8FCBCE; --accent-soft: #16302F;
+    --brass: #C9A24A; --brass-soft: #2B2517;
+    --stop: #D98070; --stop-soft: #331F1B;
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    background: var(--ground); color: var(--ink);
+    font-family: var(--sans); font-size: 16px; line-height: 1.6;
+    margin: 0; padding: 0 1.25rem 6rem;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap { max-width: 58rem; margin: 0 auto; }
+
+  header.mast { padding: 3.5rem 0 2rem; border-bottom: 2px solid var(--ink); margin-bottom: 2.5rem; }
+  .eyebrow {
+    font-family: var(--mono); font-size: 0.7rem; letter-spacing: 0.16em;
+    text-transform: uppercase; color: var(--accent); margin: 0 0 0.9rem;
+  }
+  h1 {
+    font-family: var(--mono); font-size: clamp(1.8rem, 5vw, 2.9rem); font-weight: 600;
+    letter-spacing: -0.02em; line-height: 1.08; margin: 0 0 1rem; text-wrap: balance;
+  }
+  .standfirst { font-size: 1.12rem; color: var(--ink-soft); max-width: 42rem; margin: 0; }
+
+  h2 {
+    font-family: var(--mono); font-size: 0.76rem; letter-spacing: 0.15em;
+    text-transform: uppercase; color: var(--accent); margin: 3.5rem 0 1.3rem;
+    padding-bottom: 0.55rem; border-bottom: 1px solid var(--rule);
+  }
+  h3 { font-size: 1.05rem; font-weight: 650; margin: 1.8rem 0 0.6rem; letter-spacing: -0.01em; }
+  p { margin: 0 0 0.9rem; max-width: 62ch; }
+  .lead { font-size: 1.04rem; color: var(--ink-soft); }
+  code {
+    font-family: var(--mono); font-size: 0.86em; background: var(--panel-2);
+    padding: 0.1em 0.35em; border-radius: 2px; border: 1px solid var(--rule);
+  }
+  strong { font-weight: 650; }
+
+  /* figures */
+  figure { margin: 1.6rem 0; }
+  figure svg { max-width: 100%; height: auto; display: block; }
+  figcaption {
+    font-family: var(--mono); font-size: 0.7rem; color: var(--muted);
+    margin-top: 0.7rem; letter-spacing: 0.02em; line-height: 1.5;
+  }
+
+  /* mono diagram blocks */
+  .dia {
+    border: 1px solid var(--rule-strong); background: var(--panel);
+    overflow-x: auto; padding: 0.95rem 1rem; margin: 1.1rem 0;
+  }
+  .dia pre {
+    font-family: var(--mono); font-size: 0.775rem; line-height: 1.6;
+    margin: 0; white-space: pre; color: var(--ink-soft);
+  }
+  .dia pre b { color: var(--ink); font-weight: 600; }
+  .dia pre .hl { color: var(--accent); font-weight: 600; }
+  .dia pre .wr { color: var(--brass); font-weight: 600; }
+  .dia pre .bad { color: var(--stop); font-weight: 600; }
+  .dia pre .dim { opacity: 0.6; }
+
+  /* jump nav */
+  .jump {
+    display: flex; flex-wrap: wrap; gap: 0.35rem; margin: 1.5rem 0 0;
+    padding: 0.9rem; border: 1px solid var(--rule); background: var(--panel-2);
+  }
+  .jump a {
+    font-family: var(--mono); font-size: 0.72rem; text-decoration: none;
+    color: var(--ink-soft); border: 1px solid var(--rule-strong);
+    padding: 0.3rem 0.5rem; background: var(--panel);
+  }
+  .jump a:hover { border-color: var(--accent); color: var(--accent); }
+  .jump a:focus-visible { outline: 2px solid var(--brass); outline-offset: 2px; }
+
+  /* step card */
+  .step { border: 1px solid var(--rule-strong); background: var(--panel); margin: 1.5rem 0; }
+  .step-head {
+    display: flex; align-items: baseline; gap: 0.8rem; flex-wrap: wrap;
+    padding: 0.9rem 1.1rem; border-bottom: 1px solid var(--rule); background: var(--panel-2);
+  }
+  .step-n {
+    font-family: var(--mono); font-size: 0.72rem; letter-spacing: 0.1em;
+    color: var(--ground); background: var(--accent); padding: 0.2rem 0.5rem; font-weight: 700;
+  }
+  .step.branch .step-n { background: var(--brass); }
+  .step-name { font-family: var(--mono); font-size: 0.95rem; font-weight: 650; letter-spacing: -0.01em; }
+  .step-tag {
+    font-family: var(--mono); font-size: 0.63rem; letter-spacing: 0.1em;
+    text-transform: uppercase; color: var(--muted); margin-left: auto;
+  }
+  .step-body { padding: 1.1rem; }
+  .step-does { font-size: 1rem; color: var(--ink); margin: 0 0 1rem; max-width: none; }
+
+  .io { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; margin: 0 0 1rem; font-family: var(--mono); font-size: 0.72rem; }
+  .io .chip { border: 1px solid var(--rule-strong); padding: 0.3rem 0.55rem; background: var(--panel-2); }
+  .io .chip b { color: var(--muted); font-weight: 400; letter-spacing: 0.08em; }
+  .io .arw { color: var(--accent); font-weight: 700; }
+
+  ul.logic { list-style: none; padding: 0; margin: 0; max-width: none; }
+  ul.logic li {
+    padding: 0.5rem 0 0.5rem 1.5rem; border-top: 1px solid var(--rule);
+    position: relative; font-size: 0.94rem;
+  }
+  ul.logic li:first-child { border-top: none; }
+  ul.logic li::before {
+    content: "▸"; position: absolute; left: 0.25rem; color: var(--accent); font-size: 0.8rem;
+  }
+  ul.logic li b { font-weight: 650; }
+
+  details {
+    margin-top: 1rem; border: 1px solid var(--rule); background: var(--panel-2); padding: 0.6rem 0.85rem;
+  }
+  details summary {
+    font-family: var(--mono); font-size: 0.72rem; letter-spacing: 0.06em;
+    color: var(--brass); cursor: pointer; text-transform: uppercase; font-weight: 600;
+  }
+  details summary:focus-visible { outline: 2px solid var(--brass); outline-offset: 2px; }
+  details[open] summary { margin-bottom: 0.7rem; }
+  details p, details ul { font-size: 0.9rem; }
+  details ul { padding-left: 1.1rem; }
+  details li { margin-bottom: 0.35rem; }
+
+  .callout {
+    background: var(--accent-soft); border-left: 3px solid var(--accent);
+    padding: 1rem 1.2rem; margin: 1.4rem 0;
+  }
+  .callout p { margin: 0; max-width: none; }
+  .callout .tag {
+    font-family: var(--mono); font-size: 0.66rem; letter-spacing: 0.14em;
+    text-transform: uppercase; color: var(--accent); display: block; margin-bottom: 0.45rem;
+  }
+  .callout.warn { background: var(--brass-soft); border-left-color: var(--brass); }
+  .callout.warn .tag { color: var(--brass); }
+
+  .tw { overflow-x: auto; margin: 1.3rem 0; }
+  table { border-collapse: collapse; width: 100%; font-size: 0.87rem; min-width: 30rem; }
+  th, td { text-align: left; padding: 0.6rem 0.75rem; border-bottom: 1px solid var(--rule); vertical-align: top; }
+  th {
+    font-family: var(--mono); font-size: 0.64rem; letter-spacing: 0.12em;
+    text-transform: uppercase; color: var(--muted); border-bottom: 1px solid var(--rule-strong);
+    white-space: nowrap;
+  }
+  td code { font-size: 0.82em; }
+  .yes { color: var(--accent); font-weight: 700; }
+  .no { color: var(--brass); font-weight: 700; }
+
+  footer.end {
+    border-top: 2px solid var(--ink); padding-top: 1.3rem; margin-top: 4rem;
+    font-family: var(--mono); font-size: 0.72rem; color: var(--muted);
+  }
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
+</style>
+
+<div class="wrap">
+
+<header class="mast">
+  <p class="eyebrow">Setu · SEBI Compliance Portal</p>
+  <h1>How the whole thing works</h1>
+  <p class="standfirst">
+    SEBI publishes rules as prose in 400-page PDFs. Every firm reads them itself, and
+    interprets them differently. This turns those documents into one live rule graph —
+    so a firm sees exactly which rules apply to it, and whether it's compliant right now.
+  </p>
+  <div class="callout warn" style="margin-top:1.6rem">
+    <span class="tag">⚠ Measured — read before the steps</span>
+    <p>
+      Every number here was produced by running the real parser over
+      <b>8 real documents · ~1,700 pages · 2 regulators</b> — not estimated. Three
+      designs were discarded because of what the measurements showed.
+    </p>
+    <p style="margin-top:0.7rem">
+      The biggest finding: <b>there are three ways a document says who a rule applies to,
+      and they stack.</b>
+    </p>
+    <div class="dia" style="margin:0.9rem 0 0;border-color:var(--brass)"><pre><b>PATTERN C</b>  document-level declaration   "this applies to: X, Y, Z"
+             <span class="hl">every document has one</span> · works in SEBI AND RBI
+   ↓
+<b>PATTERN A</b>  chapter scoping             a heading narrows it      4 of 8
+   ↓
+<b>PATTERN B</b>  taxonomy + thresholds       tiers with per-type limits 1 of 8</pre></div>
+    <p style="margin-top:0.7rem">
+      Step 10 was designed for <b>A only</b>. Pattern C — the floor under everything —
+      was missed entirely, and it's the one that matters most.
+    </p>
+  </div>
+
+  <nav class="jump" aria-label="Jump to a step">
+    <a href="#s1">1 receive</a><a href="#s2">2 fingerprint</a><a href="#s3">3 store</a>
+    <a href="#s4">4 job</a><a href="#s5">5 read</a><a href="#s6">6 tree</a>
+    <a href="#s7">7 audit</a><a href="#s8">8 filter</a><a href="#s9">9 windows</a>
+    <a href="#s10">10 audience</a><a href="#s11">11 draft</a><a href="#s12">12 assemble</a>
+    <a href="#s13">13 data-points</a><a href="#s14">14 fingerprints</a><a href="#s15">15 filing</a><a href="#s16">16 links</a><a href="#s17">17 consistency</a>
+  </nav>
+</header>
+
+<section>
+  <h2>The problem, in one picture</h2>
+
+  <figure>
+    <svg viewBox="0 0 720 200" role="img" aria-label="Today every firm reads the same circular separately and reaches different conclusions; with Setu the circular is compiled once into a rule graph and each firm receives its own answer.">
+      <defs>
+        <marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+          <path d="M 0 0 L 10 5 L 0 10 z" fill="currentColor"/>
+        </marker>
+      </defs>
+      <text x="0" y="14" font-family="ui-monospace, monospace" font-size="11" fill="currentColor" opacity="0.6">TODAY</text>
+      <rect x="0" y="26" width="96" height="42" fill="none" stroke="currentColor" stroke-width="1.5"/>
+      <text x="48" y="44" font-family="ui-monospace, monospace" font-size="11" fill="currentColor" text-anchor="middle">circular</text>
+      <text x="48" y="58" font-family="ui-monospace, monospace" font-size="11" fill="currentColor" text-anchor="middle">(PDF)</text>
+      <line x1="100" y1="47" x2="168" y2="24" stroke="currentColor" stroke-width="1" marker-end="url(#ar)"/>
+      <line x1="100" y1="47" x2="168" y2="47" stroke="currentColor" stroke-width="1" marker-end="url(#ar)"/>
+      <line x1="100" y1="47" x2="168" y2="70" stroke="currentColor" stroke-width="1" marker-end="url(#ar)"/>
+      <text x="176" y="28" font-family="ui-monospace, monospace" font-size="11" fill="currentColor">firm A reads it → interpretation A</text>
+      <text x="176" y="51" font-family="ui-monospace, monospace" font-size="11" fill="currentColor">firm B reads it → interpretation B</text>
+      <text x="176" y="74" font-family="ui-monospace, monospace" font-size="11" fill="currentColor">firm C reads it → interpretation C</text>
+
+      <line x1="0" y1="104" x2="720" y2="104" stroke="currentColor" stroke-width="1" opacity="0.25"/>
+
+      <text x="0" y="130" font-family="ui-monospace, monospace" font-size="11" fill="#0F5257" opacity="0.9">WITH SETU</text>
+      <rect x="0" y="142" width="96" height="42" fill="none" stroke="currentColor" stroke-width="1.5"/>
+      <text x="48" y="160" font-family="ui-monospace, monospace" font-size="11" fill="currentColor" text-anchor="middle">circular</text>
+      <text x="48" y="174" font-family="ui-monospace, monospace" font-size="11" fill="currentColor" text-anchor="middle">(PDF)</text>
+      <line x1="100" y1="163" x2="140" y2="163" stroke="currentColor" stroke-width="1" marker-end="url(#ar)"/>
+      <rect x="146" y="142" width="104" height="42" fill="none" stroke="#0F5257" stroke-width="2"/>
+      <text x="198" y="160" font-family="ui-monospace, monospace" font-size="11" fill="currentColor" text-anchor="middle">compiled</text>
+      <text x="198" y="174" font-family="ui-monospace, monospace" font-size="11" fill="currentColor" text-anchor="middle">once</text>
+      <line x1="254" y1="163" x2="300" y2="140" stroke="currentColor" stroke-width="1" marker-end="url(#ar)"/>
+      <line x1="254" y1="163" x2="300" y2="163" stroke="currentColor" stroke-width="1" marker-end="url(#ar)"/>
+      <line x1="254" y1="163" x2="300" y2="186" stroke="currentColor" stroke-width="1" marker-end="url(#ar)"/>
+      <text x="308" y="144" font-family="ui-monospace, monospace" font-size="11" fill="currentColor">firm A → its own answer</text>
+      <text x="308" y="167" font-family="ui-monospace, monospace" font-size="11" fill="currentColor">firm B → its own answer</text>
+      <text x="308" y="190" font-family="ui-monospace, monospace" font-size="11" fill="currentColor">firm C → its own answer</text>
+    </svg>
+    <figcaption>
+      Same rules for everyone, different answers per firm — because the differences come
+      from each firm's own data, not from each firm's reading of the text.
+    </figcaption>
+  </figure>
+</section>
+
+<section>
+  <h2>Three layers — the shape everything else follows</h2>
+
+  <p class="lead">
+    Understand this and the rest of the design explains itself. The system is three
+    layers, and <strong>only the middle one is expensive.</strong>
+  </p>
+
+  <figure>
+    <svg viewBox="0 0 620 268" role="img" aria-label="Three layers: documents written once, extractions cached forever, and the graph which is disposable and rebuilt from the extractions.">
+      <defs>
+        <marker id="ar2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+          <path d="M 0 0 L 10 5 L 0 10 z" fill="currentColor"/>
+        </marker>
+      </defs>
+
+      <rect x="10" y="10" width="380" height="62" fill="none" stroke="currentColor" stroke-width="1.5"/>
+      <text x="26" y="32" font-family="ui-monospace, monospace" font-size="12" font-weight="700" fill="currentColor">A · DOCUMENTS</text>
+      <text x="26" y="50" font-family="ui-monospace, monospace" font-size="11" fill="currentColor" opacity="0.75">the original PDFs — the evidence</text>
+      <text x="26" y="65" font-family="ui-monospace, monospace" font-size="11" fill="currentColor" opacity="0.75">written once · never modified</text>
+      <text x="404" y="46" font-family="ui-monospace, monospace" font-size="11" fill="currentColor" opacity="0.55">every rule traces back here</text>
+
+      <line x1="200" y1="74" x2="200" y2="94" stroke="currentColor" stroke-width="1.5" marker-end="url(#ar2)"/>
+
+      <rect x="10" y="98" width="380" height="62" fill="none" stroke="#8A6A20" stroke-width="2"/>
+      <text x="26" y="120" font-family="ui-monospace, monospace" font-size="12" font-weight="700" fill="currentColor">B · EXTRACTIONS</text>
+      <text x="26" y="138" font-family="ui-monospace, monospace" font-size="11" fill="currentColor" opacity="0.75">everything the AI ever said</text>
+      <text x="26" y="153" font-family="ui-monospace, monospace" font-size="11" fill="currentColor" opacity="0.75">EXPENSIVE · bought once · kept forever</text>
+      <text x="404" y="134" font-family="ui-monospace, monospace" font-size="11" fill="#8A6A20">cached by clause</text>
+
+      <line x1="200" y1="162" x2="200" y2="182" stroke="currentColor" stroke-width="1.5" marker-end="url(#ar2)"/>
+
+      <rect x="10" y="186" width="380" height="62" fill="none" stroke="#0F5257" stroke-width="2"/>
+      <text x="26" y="208" font-family="ui-monospace, monospace" font-size="12" font-weight="700" fill="currentColor">C · THE GRAPH</text>
+      <text x="26" y="226" font-family="ui-monospace, monospace" font-size="11" fill="currentColor" opacity="0.75">audiences · rules · formulas · links</text>
+      <text x="26" y="241" font-family="ui-monospace, monospace" font-size="11" fill="currentColor" opacity="0.75">CHEAP · disposable · always recomputed</text>
+
+      <path d="M 396 217 Q 470 217 470 129" fill="none" stroke="#0F5257" stroke-width="1.5" stroke-dasharray="4 3" marker-end="url(#ar2)"/>
+      <text x="480" y="200" font-family="ui-monospace, monospace" font-size="11" fill="#0F5257">delete it and</text>
+      <text x="480" y="215" font-family="ui-monospace, monospace" font-size="11" fill="#0F5257">rebuild for free</text>
+    </svg>
+    <figcaption>
+      The graph is never edited — it is recomputed. Fixing a bug in the rule logic costs
+      minutes and zero AI spend; only a changed prompt touches layer B.
+    </figcaption>
+  </figure>
+
+  <div class="callout">
+    <span class="tag">Why this matters more than anything else here</span>
+    <p>
+      Without the split, every improvement to the hard logic means re-running the AI over
+      two million clauses. With it, you can iterate on the difficult part fifty times a
+      day for nothing.
+    </p>
+  </div>
+</section>
+
+<section>
+  <h2>The pipeline at a glance</h2>
+
+  <figure>
+    <svg viewBox="0 0 720 300" role="img" aria-label="Steps 1 to 9 form a chain from intake through reading to windows; step 10 branches off the clause tree to resolve audiences and rejoins at step 12; steps 11 to 17 draft, assemble, fingerprint, file, link and check the rules.">
+      <defs>
+        <marker id="ar3" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+          <path d="M 0 0 L 10 5 L 0 10 z" fill="currentColor"/>
+        </marker>
+      </defs>
+
+      <rect x="8" y="30" width="150" height="58" fill="none" stroke="currentColor" stroke-width="1.5"/>
+      <text x="20" y="50" font-family="ui-monospace, monospace" font-size="11" font-weight="700" fill="currentColor">1–4 INTAKE</text>
+      <text x="20" y="66" font-family="ui-monospace, monospace" font-size="10" fill="currentColor" opacity="0.7">check · dedupe</text>
+      <text x="20" y="79" font-family="ui-monospace, monospace" font-size="10" fill="currentColor" opacity="0.7">store · job record</text>
+
+      <line x1="160" y1="59" x2="196" y2="59" stroke="currentColor" stroke-width="1.5" marker-end="url(#ar3)"/>
+
+      <rect x="200" y="30" width="150" height="58" fill="none" stroke="currentColor" stroke-width="1.5"/>
+      <text x="212" y="50" font-family="ui-monospace, monospace" font-size="11" font-weight="700" fill="currentColor">5–7 READ</text>
+      <text x="212" y="66" font-family="ui-monospace, monospace" font-size="10" fill="currentColor" opacity="0.7">pages → lines → tree</text>
+      <text x="212" y="79" font-family="ui-monospace, monospace" font-size="10" fill="currentColor" opacity="0.7">check for holes</text>
+
+      <line x1="352" y1="59" x2="388" y2="59" stroke="currentColor" stroke-width="1.5" marker-end="url(#ar3)"/>
+
+      <rect x="392" y="30" width="150" height="58" fill="none" stroke="currentColor" stroke-width="1.5"/>
+      <text x="404" y="50" font-family="ui-monospace, monospace" font-size="11" font-weight="700" fill="currentColor">8–9 PREPARE</text>
+      <text x="404" y="66" font-family="ui-monospace, monospace" font-size="10" fill="currentColor" opacity="0.7">skip junk</text>
+      <text x="404" y="79" font-family="ui-monospace, monospace" font-size="10" fill="currentColor" opacity="0.7">build windows</text>
+
+      <line x1="544" y1="59" x2="580" y2="59" stroke="currentColor" stroke-width="1.5" marker-end="url(#ar3)"/>
+
+      <rect x="584" y="30" width="128" height="58" fill="none" stroke="#8A6A20" stroke-width="2"/>
+      <text x="596" y="50" font-family="ui-monospace, monospace" font-size="11" font-weight="700" fill="currentColor">11 DRAFT</text>
+      <text x="596" y="66" font-family="ui-monospace, monospace" font-size="10" fill="#8A6A20">the AI reads</text>
+      <text x="596" y="79" font-family="ui-monospace, monospace" font-size="10" fill="#8A6A20">one clause at a time</text>
+
+      <path d="M 648 90 L 648 150 L 400 150 L 400 176" fill="none" stroke="currentColor" stroke-width="1.5" marker-end="url(#ar3)"/>
+
+      <path d="M 275 90 L 275 118 L 90 118 L 90 176" fill="none" stroke="#0F5257" stroke-width="1.5" stroke-dasharray="5 3" marker-end="url(#ar3)"/>
+      <rect x="8" y="180" width="164" height="52" fill="none" stroke="#0F5257" stroke-width="2"/>
+      <text x="20" y="200" font-family="ui-monospace, monospace" font-size="11" font-weight="700" fill="currentColor">10 AUDIENCE</text>
+      <text x="20" y="216" font-family="ui-monospace, monospace" font-size="10" fill="#0F5257">who does each</text>
+      <text x="20" y="228" font-family="ui-monospace, monospace" font-size="10" fill="#0F5257">section apply to?</text>
+      <text x="18" y="132" font-family="ui-monospace, monospace" font-size="10" fill="#0F5257">branches off the tree</text>
+
+      <path d="M 174 206 L 316 206" fill="none" stroke="#0F5257" stroke-width="1.5" stroke-dasharray="5 3" marker-end="url(#ar3)"/>
+
+      <rect x="320" y="180" width="164" height="52" fill="none" stroke="currentColor" stroke-width="1.5"/>
+      <text x="332" y="200" font-family="ui-monospace, monospace" font-size="11" font-weight="700" fill="currentColor">12 ASSEMBLE</text>
+      <text x="332" y="216" font-family="ui-monospace, monospace" font-size="10" fill="currentColor" opacity="0.7">apply modifiers ·</text>
+      <text x="332" y="228" font-family="ui-monospace, monospace" font-size="10" fill="currentColor" opacity="0.7">the two streams meet</text>
+
+      <line x1="486" y1="206" x2="522" y2="206" stroke="currentColor" stroke-width="1.5" marker-end="url(#ar3)"/>
+
+      <rect x="526" y="180" width="186" height="52" fill="none" stroke="currentColor" stroke-width="1.5"/>
+      <text x="538" y="200" font-family="ui-monospace, monospace" font-size="11" font-weight="700" fill="currentColor">13 DATA-POINTS</text>
+      <text x="538" y="216" font-family="ui-monospace, monospace" font-size="10" fill="currentColor" opacity="0.7">words → permanent ids</text>
+      <text x="538" y="228" font-family="ui-monospace, monospace" font-size="10" fill="currentColor" opacity="0.7">one fact, one entry</text>
+
+      <text x="8" y="272" font-family="ui-monospace, monospace" font-size="10" fill="currentColor" opacity="0.55">solid = the main chain · dashed = the audience branch, which never blocks drafting</text>
+    </svg>
+    <figcaption>
+      Step 10 is the one that trips people up: it is <strong>not</strong> the next link
+      after Step 9. It branches off the clause tree, runs alongside, and rejoins at Step 12.
+    </figcaption>
+  </figure>
+
+  <h3>The five things the system keeps</h3>
+  <div class="tw">
+    <table>
+      <thead><tr><th>Register</th><th>What's in it</th><th>Example row</th></tr></thead>
+      <tbody>
+        <tr><td><b>Audiences</b></td><td>kinds of firm a rule can apply to</td><td><code>Qualified Stock Brokers · is_qsb = yes</code></td></tr>
+        <tr><td><b>Data-points</b></td><td>every distinct fact a firm must supply</td><td><code>last_audit_date</code></td></tr>
+        <tr><td><b>Formulas</b></td><td>values computed from other values</td><td><code>net_worth = capital + reserves − losses</code></td></tr>
+        <tr><td><b>Rules</b></td><td>the actual obligations</td><td><code>QSB · cyber audit within 180 days</code></td></tr>
+        <tr><td><b>Links</b></td><td>dependencies between rules</td><td><code>if audit fails → check exception report</code></td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<h2>The seventeen steps</h2>
+
+<!-- 1 -->
+<article class="step" id="s1">
+  <div class="step-head"><span class="step-n">01</span><span class="step-name">Receive and check</span><span class="step-tag">built</span></div>
+  <div class="step-body">
+    <p class="step-does">Is this a real file, from someone allowed to send it?</p>
+    <div class="io"><span class="chip"><b>IN</b> raw bytes + dates + login</span><span class="arw">→</span><span class="chip"><b>OUT</b> a validated package</span></div>
+    <ul class="logic">
+      <li>Peek at the <b>first 5 bytes</b> — a real PDF always starts <code>%PDF</code>. Catches a renamed Word file instantly, without reading the rest.</li>
+      <li>Filename becomes a clean permanent handle: <code>Master Circular 2024.pdf</code> → <code>master-circular-2024</code>.</li>
+      <li>The typed dates become real dates. <b>The effective date is what orders everything later.</b></li>
+      <li>Any check fails → nothing is saved anywhere, so there's no half-record to clean up.</li>
+    </ul>
+    <p style="margin:1rem 0 0;font-size:0.9rem;color:var(--muted)">Not one word of the document has been read yet.</p>
+  </div>
+</article>
+
+<!-- 2 -->
+<article class="step" id="s2">
+  <div class="step-head"><span class="step-n">02</span><span class="step-name">Fingerprint and dedupe</span><span class="step-tag">built</span></div>
+  <div class="step-body">
+    <p class="step-does">Have we already processed this exact file?</p>
+    <div class="io"><span class="chip"><b>IN</b> validated package</span><span class="arw">→</span><span class="chip"><b>OUT</b> + fingerprint + verdict</span></div>
+    <div class="dia"><pre>hash the whole file → one short code
+   identical files      → <span class="hl">identical code</span>
+   one character changed → <span class="hl">completely different code</span>
+
+   match + job COMPLETED        → skip, we're done
+   match + job failed/half-done → <span class="wr">redo it</span>
+   same content, new name       → <span class="wr">ask a human</span></pre></div>
+    <ul class="logic">
+      <li><b>Skip on "job completed", never on "file present."</b> A crash at document 500 leaves its file stored but half-processed — skipping on presence would silently lose it.</li>
+      <li>That one distinction is what makes a 1,000-document load resumable.</li>
+    </ul>
+    <details><summary>Where it breaks</summary>
+      <p>A re-scanned or re-exported PDF has different bytes, so it passes as new. That's fine — it's caught later at clause level, where identical text reuses all the cached AI work anyway.</p>
+    </details>
+  </div>
+</article>
+
+<!-- 3 -->
+<article class="step" id="s3">
+  <div class="step-head"><span class="step-n">03</span><span class="step-name">Store the file</span><span class="step-tag">built</span></div>
+  <div class="step-body">
+    <p class="step-does">Put the PDF somewhere permanent and carry a ticket instead.</p>
+    <div class="io"><span class="chip"><b>IN</b> 40 MB of bytes</span><span class="arw">→</span><span class="chip"><b>OUT</b> a short locker number</span></div>
+    <ul class="logic">
+      <li>Goes to a <b>file store</b>, not the main database — big opaque blobs and searchable records are different jobs.</li>
+      <li>Every downstream step now carries a light ticket. The 40 MB is only pulled back when someone actually needs the pages.</li>
+      <li><b>Written once, never modified, never deleted</b> — even if the parsing later turns out wrong. This is the evidence every rule must trace back to.</li>
+    </ul>
+  </div>
+</article>
+
+<!-- 4 -->
+<article class="step" id="s4">
+  <div class="step-head"><span class="step-n">04</span><span class="step-name">Create the job record</span><span class="step-tag">built</span></div>
+  <div class="step-body">
+    <p class="step-does">Open a control desk, then hand the work to the background.</p>
+    <div class="io"><span class="chip"><b>IN</b> the ticket</span><span class="arw">→</span><span class="chip"><b>OUT</b> job id + live progress channel</span></div>
+    <ul class="logic">
+      <li>One row holds status, a <b>diary</b> that every later step writes into, and an error slot.</li>
+      <li>A 419-page circular takes minutes; a thousand takes days. So the browser gets a ticket number, not a spinner.</li>
+      <li>This record is what Step 2 reads to answer <i>"is this genuinely done?"</i> — without it the system has no memory of its own progress.</li>
+    </ul>
+  </div>
+</article>
+
+<!-- 5 -->
+<article class="step" id="s5">
+  <div class="step-head"><span class="step-n">05</span><span class="step-name">Read the document — two lanes</span><span class="step-tag">partly built</span></div>
+  <div class="step-body">
+    <p class="step-does">Turn a printing format back into readable text — without mangling the tables.</p>
+    <div class="io"><span class="chip"><b>IN</b> the PDF</span><span class="arw">→</span><span class="chip"><b>OUT</b> ~16,000 prose lines + table grids</span></div>
+
+    <div class="callout">
+      <span class="tag">The thing that surprises everyone</span>
+      <p>
+        A PDF contains no sentences, paragraphs or even lines. It's a <b>printing
+        instruction sheet</b> — thousands of fragments saying <i>"put these characters at
+        position 72 across, 340 down."</i> A line only <i>looks</i> like a line because
+        several fragments sit at the same height.
+      </p>
+    </div>
+
+    <div class="dia"><pre><b>5a  FIND THE TABLES FIRST</b>   ← must be first
+    otherwise table cells flatten into the prose and
+    "Stock broker | ₹1 crore | 31 Mar" becomes one nonsense line
+
+<b>5b  EXTRACT PROSE LINES</b>      skipping the table regions
+    keeping: <span class="hl">page · font size · bold · indentation</span>
+
+<b>5c  EXTRACT TABLES AS GRIDS</b>  rows, columns and the header row
+    kept separately — a cell means nothing without its header</pre></div>
+
+    <ul class="logic">
+      <li>Font size and indentation are kept because they're a <b>second, independent clue</b> to structure. Throw them away and you're guessing headings from numbering alone.</li>
+      <li>Tables often hold the densest rules — a three-column table of <i>category / net worth / deadline</i> is three complete obligations per row.</li>
+    </ul>
+    <details><summary>Where it breaks</summary>
+      <ul>
+        <li><b>Scanned PDFs</b> have no text at all, just an image. The job stops with a clear reason and needs an OCR path — which matters, since older circulars are more likely to be scans.</li>
+        <li>Merged cells and multi-row headers still degrade.</li>
+      </ul>
+    </details>
+  </div>
+</article>
+
+<!-- 6 -->
+<article class="step" id="s6">
+  <div class="step-head"><span class="step-n">06</span><span class="step-name">Build the clause tree</span><span class="step-tag">built</span></div>
+  <div class="step-body">
+    <p class="step-does">Recover the document's outline, which the PDF threw away.</p>
+    <div class="io"><span class="chip"><b>IN</b> 16,240 flat lines</span><span class="arw">→</span><span class="chip"><b>OUT</b> 2,493 nested clauses</span></div>
+
+    <div class="dia"><pre>One question per line: <b>does it START a clause, or CONTINUE one?</b>
+
+"9. Obligations of Qualified Stock Brokers"    → depth 1, new
+"9.5 Cyber security"                           → depth 2, parent = 9
+"9.5.3 Audit requirements"                     → depth 3, parent = 9.5
+"9.5.3.1 A cyber security audit shall be"      → depth 4, parent = 9.5.3
+"carried out at least once every 180 days."    → <span class="hl">no number → glued onto 9.5.3.1</span>
+"9.5.3.2 A broker unable to comply shall"      → depth 4, sibling</pre></div>
+
+    <ul class="logic">
+      <li><b>Depth = number of dots.</b> Parent = the nearest earlier clause with a smaller depth.</li>
+      <li><b>Expectation beats pattern matching.</b> <i>"1.5 times the net worth"</i> starts with a number but isn't a clause. If the last clause was 9.5.2, then 9.5.3 is <i>expected</i> and 1.5 isn't — which kills most false positives.</li>
+      <li>Font separates a <b>heading</b> (short, bold, no verb) from an <b>obligation</b> (long, normal weight, "shall").</li>
+    </ul>
+
+    <details><summary>⚠ Portability limit — this grammar is SEBI-specific</summary>
+      <p style="margin-top:0.6rem">Numbering styles found in an <b>RBI</b> Master Direction:</p>
+      <div class="dia" style="margin:0.6rem 0"><pre>inline decimal  "9.5.3.1 A cyber audit shall…"    <span class="bad">0</span>   <span class="dim">← what this step expects</span>
+bare number alone on its own line                37
+Chapter – I / Chapter – II                       20
+lettered  (a) (b)                                 8
+roman lower  i. ii.                               4
+roman upper alone  I. II.                         2</pre></div>
+      <p><b>Zero.</b> RBI puts the number on its own line and the heading on the next:</p>
+      <div class="dia" style="margin:0.6rem 0"><pre>Chapter – I
+Preliminary
+1.                              <span class="dim">← number alone</span>
+Short title and Commencement    <span class="dim">← heading on the NEXT line</span>
+(a) These Directions shall be called…</pre></div>
+      <p>
+        Result: <b>31 pages → 38 clauses</b>, against SEBI's ~6 per page. The tree comes out
+        structurally wrong, so nothing downstream can be trusted for that document.
+      </p>
+      <p>
+        <b>This is a documented boundary, not a task.</b> While Setu is SEBI-only, this step
+        is fine. Extending to RBI / IRDAI / PFRDA needs a <b>pluggable numbering grammar per
+        regulator</b> — a new component, not a tweak.
+      </p>
+    </details>
+
+    <details><summary>⚠ Two structural facts the design assumed away</summary>
+      <p><b>1 — Some circulars are bilingual.</b></p>
+      <div class="dia" style="margin:0.6rem 0"><pre>7.1  "बाजार की बुनियादी संस्थाएँ (एमआईआई)"        <span class="dim">← Devanagari</span>
+7.1  "Market Infrastructure Institutions (MIIs)"  <span class="dim">← English, same number</span>
+
+79 of 1,082 clauses (7.3%) are Devanagari</pre></div>
+      <p>
+        Two interleaved trees, every number appearing twice. Needs a <b>language pass
+        before segmentation</b> — otherwise the numbering audit reads the second copy as
+        duplicates rather than gaps, and every citation has two candidate targets.
+      </p>
+      <p style="margin-top:0.9rem"><b>2 — The clause number is not a unique key</b>, even in monolingual documents.</p>
+      <div class="dia" style="margin:0.6rem 0"><pre>master circular   144 duplicated numbers   "1" appears <span class="wr">76×</span> · "2" appears <span class="wr">83×</span>
+CSCRF              81 duplicated numbers   "1" appears <span class="wr">153×</span></pre></div>
+      <p>
+        Sub-lists restart numbering in every section. Full dotted paths like
+        <code>9.5.3.1</code> are far more unique, but a citation to a bare <i>"para 1"</i>
+        can't be resolved without context — which Step 12's modifier resolution depends on.
+      </p>
+    </details>
+  </div>
+</article>
+
+<!-- 7 -->
+<article class="step" id="s7">
+  <div class="step-head"><span class="step-n">07</span><span class="step-name">Check the tree for holes</span><span class="step-tag">built</span></div>
+  <div class="step-body">
+    <p class="step-does">Find clauses we lost — because a lost clause is completely invisible.</p>
+    <div class="io"><span class="chip"><b>IN</b> the tree</span><span class="arw">→</span><span class="chip"><b>OUT</b> repaired tree + a report</span></div>
+
+    <div class="callout warn">
+      <span class="tag">Why this step exists</span>
+      <p>
+        A wrongly extracted rule gets noticed eventually. A clause that never entered the
+        tree produces <b>no error, no warning, no gap on screen</b> — the obligation simply
+        isn't there, and nobody finds out until a regulator asks.
+      </p>
+    </div>
+
+    <div class="dia"><pre>Under 9.5:  9.5.1, 9.5.2, <span class="bad">____</span>, 9.5.4      ← where is 9.5.3?
+
+<b>Lane 1</b>  glued to the text?     "9.5.3The broker shall..."
+                                  → <span class="hl">split the line, rebuild</span> · no AI
+
+<b>Lane 2</b>  cited mid-sentence?   "in accordance with para 9.5.3"
+                                  → <span class="hl">a reference, not a clause</span> · cleared
+
+<b>Lane 3</b>  found nowhere?        → <span class="wr">genuinely missing → FLAG</span></pre></div>
+
+    <ul class="logic">
+      <li>If Lane 1 repairs anything, the tree is <b>rebuilt and re-audited</b> — an un-glued clause may have swallowed children of its own.</li>
+      <li><b>Measured:</b> 1,603 numbers checked on the master circular → 4 genuine gaps flagged, <b>0 false repairs</b>. The four were verified by hand as real.</li>
+      <li>Annexures are excluded — their numbering is chaotic and once produced 23 false alarms.</li>
+    </ul>
+  </div>
+</article>
+
+<!-- 8 -->
+<article class="step" id="s8">
+  <div class="step-head"><span class="step-n">08</span><span class="step-name">Decide what reaches the AI</span><span class="step-tag">built</span></div>
+  <div class="step-body">
+    <p class="step-does">Skip only what is <i>provably</i> not a rule. Send everything else.</p>
+    <div class="io"><span class="chip"><b>IN</b> 2,493 clauses</span><span class="arw">→</span><span class="chip"><b>OUT</b> 2,193 sent · 300 skipped</span></div>
+
+    <div class="dia"><pre><b>ALLOWLIST</b>  "only send things that look like obligations"   <span class="bad">✗ we tried this</span>
+<b>BLOCKLIST</b>  "send everything except provable junk"          <span class="hl">✓ correct</span>
+
+what the allowlist silently dropped:
+   "1.1 the total number of active clients of the stock broker"
+   no "shall", short — yet it's one of four parameters that decide
+   whether a broker is a QSB at all
+
+           QSB circular     11 of 39  →  <span class="hl">37 sent</span>
+           master circular  1,231     →  <span class="hl">2,193 sent</span></pre></div>
+
+    <div class="callout">
+      <span class="tag">The whole argument in one line</span>
+      <p>
+        Sending too much is <b>a bill</b>. Sending too little is <b>an obligation that
+        vanishes with no error, no gap and no symptom.</b> Those costs are not symmetric.
+      </p>
+    </div>
+
+    <ul class="logic">
+      <li>Junk = table of contents · bare headings · under 15 characters · letterhead. That's all.</li>
+      <li><b>Junk means "don't send", never "discard."</b> A junk heading is simultaneously the most important node in the document, because it tells us the audience for every clause beneath it.</li>
+    </ul>
+
+    <div class="callout warn">
+      <span class="tag">⚠ Measured bug — the length rule deletes audience definitions</span>
+      <div class="dia" style="margin:0.5rem 0 0.8rem;border-color:var(--brass)"><pre>on the 205-page multi-entity circular:
+
+  7.2  "Qualified Res"    13 chars  →  junk  <span class="bad">✗ dropped</span>
+  7.3  "Mid-size REs"     12 chars  →  junk  <span class="bad">✗ dropped</span>
+  7.4  "Small-size REs"   14 chars  →  junk  <span class="bad">✗ dropped</span></pre></div>
+      <p>
+        Those three clauses define <b>who the entire framework applies to</b>. An audience
+        name is <b>short by nature</b>, so a length threshold is actively hostile to the
+        content that matters most.
+      </p>
+      <p style="margin-top:0.7rem">
+        <b>Fix:</b> never junk a short clause when its parent's lead-in announces a list
+        — <i>"…the following five categories"</i>. A short list item is normal.
+      </p>
+    </div>
+  </div>
+</article>
+
+<!-- 9 -->
+<article class="step" id="s9">
+  <div class="step-head"><span class="step-n">09</span><span class="step-name">Build the windows</span><span class="step-tag">partly built</span></div>
+  <div class="step-body">
+    <p class="step-does">Carry exactly the context that makes a clause mean something — and nothing more.</p>
+    <div class="io"><span class="chip"><b>IN</b> tree + tables</span><span class="arw">→</span><span class="chip"><b>OUT</b> ~2,370 self-contained blocks</span></div>
+
+    <div class="dia"><pre>A clause alone is often meaningless:
+   9.5.3.2  "The report shall be submitted within 15 days."
+            <span class="bad">what report? by whom? to whom?</span>
+
+<b>A WINDOW</b>
+  ┌─ CONTEXT ────── the heading trail        <span class="dim">always</span>
+  ├─ LEAD-IN ────── the parent's own text    <span class="dim">when it exists</span>
+  ├─ CLAUSE ─────── the clause itself
+  ├─ REFERENCED ─── other clauses' text      <span class="dim">only some kinds</span>
+  └─ SIBLING ────── the previous clause      <span class="dim">~1% of clauses only</span></pre></div>
+
+    <h3 style="margin-top:1.4rem">Why the lead-in isn't optional</h3>
+    <div class="dia"><pre>1.   Based on the following parameters, stock brokers shall be
+     designated as Qualified Stock Brokers:
+1.4     the end of day margin obligations of the broker
+
+read 1.4 alone → <span class="bad">a noun phrase. No verb, no duty, unusable.</span>
+the obligation lives one level up</pre></div>
+
+    <ul class="logic">
+      <li><b>The whole window is fingerprinted</b>, not just the clause. The same sentence under <i>"Obligations of QSBs"</i> and <i>"Obligations of non-QSBs"</i> means different things — hashing the clause alone would reuse an answer from the wrong context.</li>
+      <li><b>The sibling is pulled in only on unambiguous signals</b> — no subject at all, or <i>"such"</i> / <i>"the said"</i>, or a real pronoun. Deliberately <b>not</b> the broad <i>"the + noun"</i> pattern. See below.</li>
+    </ul>
+
+    <details><summary>This one was designed twice, and measurement killed both versions</summary>
+      <p style="margin-top:0.6rem">
+        First design: trigger on any definite backward reference (<i>"The audit shall…"</i>).
+        Second: give up on detection and always include the previous sibling's first
+        sentence. Before building either, the detector was run over the real 419-page
+        circular.
+      </p>
+      <div class="dia" style="margin:0.9rem 0"><pre>2,183 non-junk clauses
+
+ 72.1%  don't start with an article at all
+ 17.4%  definite ("the ...")
+  1.0%  pronoun
+  0.7%  strong backward reference ("such", "the said")
+  0.0%  no subject at all   <span class="dim">— one clause in the entire document</span>
+
+of the candidates:
+ 10.7%  excluded entity noun    "the broker", "the Board"
+  3.2%  antecedent in the PARENT   <span class="hl">← the lead-in already covers these</span>
+  2.8%  antecedent in the SIBLING  <span class="wr">← what the fix would buy</span></pre></div>
+      <p><b>And the examples showed even 2.8% was inflated:</b></p>
+      <div class="dia" style="margin:0.9rem 0"><pre>18.4.1.2  "the available total assets of clients with the stock broker;"
+     1.2  "the available total assets of clients with the stock broker;"
+          <span class="bad">→ list fragments, not backward references</span>
+          they need the PARENT's lead-in, already carried
+
+     2.2  "It is recommended that resources employed shall have..."
+    17.1  "It has been decided to put in place an Early Warning..."
+          <span class="bad">→ dummy "it" — grammatically refers to nothing</span>
+
+     1.8  "The system auditors should follow the reporting standard..."
+    12.1  "The transferee shall obtain fresh registration from SEBI..."
+          <span class="bad">→ entity nouns missing from the exclusion list</span></pre></div>
+      <p>
+        About <b>one in four</b> of the strongest-category examples was genuine — so the
+        real rate is <b>1–3% of clauses</b>. That makes the broad heuristic imprecise,
+        and makes always-sending a bad trade: <b>+23% tokens on every window to fix
+        ~2%.</b>
+      </p>
+      <p>
+        So: trigger on the unambiguous signals only (~1% of clauses, negligible cost),
+        and let Step 11's <code>inferred</code> field catch the rest — the model knows
+        when it's confused, and a regex never will.
+      </p>
+      <p style="color:var(--muted)">
+        The measurement took twenty minutes and discarded two designs, one of which had
+        already been argued for twice.
+      </p>
+    </details>
+  </div>
+</article>
+
+<!-- 10 -->
+<article class="step branch" id="s10">
+  <div class="step-head"><span class="step-n">10</span><span class="step-name">Work out who each section applies to</span><span class="step-tag">designed · branch</span></div>
+  <div class="step-body">
+    <p class="step-does">Turn a heading into a <b>test</b> — then let the computer decide, not the AI.</p>
+    <div class="io"><span class="chip"><b>IN</b> title + first clauses + headings</span><span class="arw">→</span><span class="chip"><b>OUT</b> every clause stamped with its audience</span></div>
+
+    <div class="callout">
+      <span class="tag">🆕 10a — read the document's base applicability first (Pattern C)</span>
+      <div class="dia" style="margin:0.5rem 0 0.8rem"><pre>SEBI Cloud Framework, p2:
+  "The framework shall be applicable to the following REs:
+     i. Stock Exchanges   ii. Clearing Corporations
+     iii. Depositories    iv. Stock Brokers through Exchanges …"
+
+RBI IT Outsourcing, p6, under a heading titled "Applicability":
+  "(a) These Directions shall be applicable to the following entities,
+       collectively referred to as 'regulated entities' or 'REs': …"</pre></div>
+      <p>
+        <b>One AI call per document</b>, stamping every clause with a floor. It's the only
+        pattern that works across both regulators — and the Cloud framework has
+        <b>one heading in 53 pages</b>, so without it that document yields
+        <b>zero</b> audiences.
+      </p>
+      <p style="margin-top:0.7rem">
+        Master circulars state applicability in the <b>title</b> — <i>"Master Circular for
+        Stock Brokers"</i> — which Step 8 currently junks as letterhead. That has to be
+        preserved and passed here.
+      </p>
+    </div>
+
+    <div class="dia"><pre><b>MATCHING BY NAME</b>                        <b>MATCHING BY TEST</b>
+
+"Obligations of Qualified Stock Brokers"   → category=stock_broker AND is_qsb=true
+"QSB Obligations"                          → category=stock_broker AND is_qsb=true
+
+different words, numbering and depth       <span class="hl">character-for-character identical</span>
+         ↓                                            ↓
+<span class="bad">guess whether they're the same</span>             <span class="hl">know they're the same</span></pre></div>
+
+    <p>Same trick as matching <i>"senior citizens"</i> to <i>"old people"</i>. Comparing words is guesswork; if both are written <code>age &gt; 60</code>, you just look and know.</p>
+
+    <div class="dia"><pre><b>THE LADDER</b> — stops at the first rung that resolves it
+
+0  <span class="dim">cheap gate — REMOVED after measurement (see below)</span>
+                      every heading now gets a call · 148 out of ~2,400
+   <span class="dim">was: does the wording look like an audience?</span>
+                      no → inherit the parent's · <span class="hl">no AI call · ~85% exit here</span>
+1  translate          one AI call → a name and a test
+2  normalise          sort terms, one form per value
+3  exact match        identical test → <span class="hl">provably the same → REUSE</span>
+4  implication        every firm matching A also matches B?
+                      → A is NARROWER → nest it underneath
+5  similarity         no logical match → compare descriptions by meaning
+6  AI judge           borderline candidates only
+7  new audience       → <span class="wr">⚠ HUMAN APPROVAL</span></pre></div>
+
+    <details><summary>⚠ The gate was measured, scored zero, and deleted</summary>
+      <div class="dia" style="margin:0.7rem 0"><pre>master circular (419p, 148 headings)   phrase gate → <span class="bad">0</span>
+CSCRF           (205p,  64 headings)   phrase gate → <span class="bad">0</span></pre></div>
+      <p>
+        The phrase list (<i>"obligations of"</i>, <i>"applicable to"</i>…) was written
+        against an <b>invented example</b> — <i>"9. Obligations of Qualified Stock
+        Brokers"</i> — which appears nowhere in the corpus. Real headings read:
+      </p>
+      <div class="dia" style="margin:0.7rem 0"><pre>"18.5  Enhanced obligations and responsibilities for QSBs:"
+"52    Conditions to be met by Broker for providing Internet Based Trading"
+"1.8   BCP/DR (Only applicable for Stock Brokers having BCP/DR site)"</pre></div>
+      <p>
+        And the asymmetry ran the wrong way. A <b>false positive</b> costs one wasted call
+        answering "no, it's a topic". A <b>false negative</b> means a section silently
+        inherits the wrong audience, and every rule beneath it is filed under the wrong
+        group. The gate saved 6% of calls while risking exactly that.
+      </p>
+    </details>
+
+    <ul class="logic">
+      <li><b>The AI translates. It never matches.</b> It's never shown the existing register — showing it and asking <i>"is this one of these?"</i> would put the decision back in the model's hands.</li>
+      <li>A <b>new audience needs a human click</b>. It's the one deliberate interruption, and it prevents the failure nothing downstream can detect: two separate QSB branches with rules scattered across both.</li>
+      <li>The gate never blocks the expensive work — clauses under a pending audience are still parsed and drafted. Only <i>filing</i> waits.</li>
+    </ul>
+
+    <figure>
+      <svg viewBox="0 0 520 190" role="img" aria-label="Audience lattice: QSBs holding client funds sits beneath both QSBs and firms holding client funds, inheriting from both.">
+        <rect x="170" y="10" width="170" height="34" fill="none" stroke="currentColor" stroke-width="1.5"/>
+        <text x="255" y="32" font-family="ui-monospace, monospace" font-size="11" fill="currentColor" text-anchor="middle">All stock brokers</text>
+        <line x1="215" y1="46" x2="120" y2="74" stroke="currentColor" stroke-width="1"/>
+        <line x1="295" y1="46" x2="392" y2="74" stroke="currentColor" stroke-width="1"/>
+        <rect x="40" y="78" width="160" height="34" fill="none" stroke="currentColor" stroke-width="1.5"/>
+        <text x="120" y="100" font-family="ui-monospace, monospace" font-size="11" fill="currentColor" text-anchor="middle">QSBs</text>
+        <rect x="312" y="78" width="176" height="34" fill="none" stroke="currentColor" stroke-width="1.5"/>
+        <text x="400" y="100" font-family="ui-monospace, monospace" font-size="11" fill="currentColor" text-anchor="middle">holds client funds</text>
+        <line x1="130" y1="114" x2="215" y2="142" stroke="#0F5257" stroke-width="1.5"/>
+        <line x1="385" y1="114" x2="300" y2="142" stroke="#0F5257" stroke-width="1.5"/>
+        <rect x="150" y="146" width="216" height="34" fill="none" stroke="#0F5257" stroke-width="2"/>
+        <text x="258" y="168" font-family="ui-monospace, monospace" font-size="11" fill="currentColor" text-anchor="middle">QSBs holding client funds</text>
+      </svg>
+      <figcaption>
+        Not a tree — a lattice. That bottom node has <b>two parents</b> and inherits
+        obligations from both. A folder structure would force the rules to be duplicated
+        down two branches, where they'd drift apart.
+      </figcaption>
+    </figure>
+
+    <details><summary>Where it breaks</summary>
+      <ul>
+        <li><b>⚠ Pattern B (1 of 8 documents) — deferred.</b> In CSCRF the audiences are a <b>numbered list</b>, not headings (<code>kind=clause</code>, <code>leaf=true</code>, no heading), and their thresholds sit in <b>a separate table per intermediary type</b> — so <i>"Mid-size RE"</i> is a matrix, not a category. When built, model it as a <b>derived property</b> in the Formula Register (<code>re_category</code> computed from AUM/clients/turnover), so the audience test collapses to <code>re_category = mid_size</code> and the tier is computed rather than self-declared.</li>
+        <li><b>Telling <i>who</i> from <i>what</i>.</b> <i>"Algorithmic trading"</i> is a topic; <i>"Brokers offering algorithmic trading"</i> is a group of firms. Nearly the same words, opposite classification. This is also why an entity-noun filter wouldn't work — <i>"Cyber Security framework for Stock Brokers"</i> contains an entity noun and is still a topic.</li>
+        <li><b>A section that steps OUT of its parent</b> — <i>"9.9 Provisions applicable to all brokers"</i> sitting inside a QSB chapter. Composing blindly would file it as QSB-only, so ~90% of brokers never learn of a rule they owe. Fixed by checking the AI's claim with logic, and stopping for a human only when the child is genuinely <i>broader</i>.</li>
+        <li><b>Audiences written in prose</b> rather than headings — handled later by promoting the rule's precondition through this same ladder.</li>
+      </ul>
+    </details>
+  </div>
+</article>
+
+<!-- 11 -->
+<article class="step" id="s11">
+  <div class="step-head"><span class="step-n">11</span><span class="step-name">Draft the rules</span><span class="step-tag">partly built</span></div>
+  <div class="step-body">
+    <p class="step-does">The AI finally reads a clause — one at a time, in isolation, in parallel.</p>
+    <div class="io"><span class="chip"><b>IN</b> ~2,370 windows</span><span class="arw">→</span><span class="chip"><b>OUT</b> rules · definitions · modifiers · declines</span></div>
+
+    <div class="dia"><pre><b>THE CACHE COMES FIRST</b>
+   look up (window hash + prompt version)
+     found     → use it. <span class="hl">no call, no cost.</span>
+     not found → queue for extraction
+
+   master circulars restate earlier ones VERBATIM
+   → on a bulk load ~<span class="hl">40% of windows are exact repeats</span>
+   → each unique window goes to the AI <span class="hl">once, ever</span></pre></div>
+
+    <div class="callout">
+      <span class="tag">Why reuse is safe</span>
+      <p>
+        The cache stores <b>what the AI said about one clause in isolation</b> — never a
+        finished rule. A clause always means what it means; what changes between circulars
+        is the <i>surrounding</i> clauses, which are combined later in the free layer. Same
+        cached translation, correctly different final rules.
+      </p>
+    </div>
+
+    <div class="dia"><pre><b>FIVE POSSIBLE ANSWERS</b>
+
+<b>1  rules</b>        one clause often holds several duties
+                 "audit every 180 days" AND "report to the board" = 2 rules
+
+<b>2  definition</b>   "net worth means capital + reserves − losses"
+                 → a FORMULA, not a rule. The form asks for the 3 inputs
+                   and computes the total — so it can't be fudged.
+
+<b>3  precondition</b> "where the broker holds client funds..."
+                 → kept structured, so it can become a real audience
+
+<b>4  modifier</b>     "9.5.1 applies only when customers > 5,000"
+                 → <span class="wr">creates NO duty of its own</span> · it changes another rule
+
+<b>5  nothing</b>      procedural text, or duties addressed to SEBI itself
+                 → declining is a legitimate answer</pre></div>
+
+    <h3>Three validation lanes — deterministic first, always</h3>
+    <div class="dia"><pre><b>1  TYPE CHECK</b>       date vs date  ✓     date vs rupees  <span class="bad">✗ reject</span>
+                    every number must carry a unit
+
+<b>2  MODIFIER CHECK</b>   the AI says it targets "9.5.3"
+                    but the text only ever mentions "9.5.1"  → <span class="wr">flag</span>
+
+<b>3  NUMBER FIDELITY</b>  text says 180 · the rule says 90
+                    90 appears nowhere → <span class="wr">TRIPWIRE</span>
+                    → not a rejection — a <span class="hl">referral</span> to a verifier,
+                      told the SPECIFIC complaint
+                    → and any correction must pass the same check</pre></div>
+
+    <div class="callout">
+      <span class="tag">The principle this is the third instance of</span>
+      <p>
+        Cheap deterministic check → tripwire → targeted AI adjudication with a specific
+        complaint → verify the answer with the same check.
+        <b>The AI is never the first responder, and never the last word.</b>
+      </p>
+    </div>
+
+    <ul class="logic">
+      <li><b>Never converts units.</b> The circular says "half-yearly"; we store "6 months", not "183 days". Six calendar months from 31 Jan is 31 July; 183 days is 2 August — a firm audited on 1 Aug is compliant under one reading and in breach under the other.</li>
+      <li><b>Fully parallel.</b> Each call is stateless, so document order has zero effect on the output. Order only matters later, in the cheap deterministic steps.</li>
+    </ul>
+
+    <details><summary>Where it breaks</summary>
+      <ul>
+        <li><b>Implied subjects</b> the document never states — <i>"the report shall be submitted"</i> to whom? Output is well-formed, correctly typed, every number present. <b>No deterministic check can catch it.</b> Handled by making the AI declare its guesses in an <code>inferred</code> field → anything non-empty goes to human review.</li>
+        <li>A duty split across <b>non-adjacent</b> clauses, where no wording points backwards.</li>
+      </ul>
+    </details>
+  </div>
+</article>
+
+<!-- 12 -->
+<article class="step" id="s12">
+  <div class="step-head"><span class="step-n">12</span><span class="step-name">Assembly</span><span class="step-tag">designed</span></div>
+  <div class="step-body">
+    <p class="step-does">The parallel work stops. Everything is walked in order and combined.</p>
+    <div class="io"><span class="chip"><b>IN</b> a pile of disconnected pieces</span><span class="arw">→</span><span class="chip"><b>OUT</b> rules with final applicability</span></div>
+
+    <div class="dia"><pre><b>THE TRIGGER IS A PHASE BOUNDARY, NOT AN EVENT</b>
+
+PHASE A — EXTRACTION    all windows, in parallel, any order
+                        → every rule and modifier now exists
+                        ─────────────────────────────────
+                                  ▼
+PHASE B — ASSEMBLY      walk them in order and build the graph
+
+nothing waits for anything · no callbacks · no scheduler</pre></div>
+
+    <div class="dia"><pre><b>RESOLVE · INDEX · APPLY</b>
+
+  the AI gave us  targets: "9.5.1"   ← a STRING, connected to nothing
+                       ↓
+  resolve to the actual clause         → clause id 88213
+                       ↓
+  group all modifiers by their target  → 88213 → [restrict: customers > 5,000]
+                       ↓
+  walk the rules in document order
+     a. <span class="hl">look up the index</span>  ← the combine
+     b. apply
+     ...
+     f. fingerprint      ← the ordering is guaranteed by the SEQUENCE,
+                            not by anyone remembering it</pre></div>
+
+    <div class="dia"><pre><b>WHAT EACH MODIFIER DOES</b>
+
+restrict   audit within 6 months · all QSBs
+           → audit within 6 months · QSBs with >5,000 customers
+
+exempt     daily reporting · all brokers
+           → all brokers EXCEPT those with <500 clients
+
+extend     audit · QSBs  →  audit · QSBs OR clearing members
+
+override   <span class="hl">doesn't edit the original</span> — creates a sibling
+           all brokers keep 180 days · QSBs get a stricter 90-day rule</pre></div>
+
+    <ul class="logic">
+      <li><b>A modifier targeting an older circular becomes an amendment</b> — that rule is already live, so narrowing it goes through diff card → approval → new version. No special machinery needed.</li>
+      <li>An <b>orphaned modifier</b> (target was declined or never parsed) is a second, independent signal that a clause was lost upstream.</li>
+    </ul>
+
+    <details><summary>Where it breaks</summary>
+      <ul>
+        <li><b>"The preceding paragraph"</b> is ambiguous about <i>level</i> — the previous clause in reading order, or the previous one at the same level? Those can mean exempting one requirement versus an entire section. Fixed by listing the candidate neighbours in the window so the AI names one explicitly.</li>
+        <li><b>A condition using an unknown property</b> — the rule waits in REVIEW rather than being filed unrestricted (over-inclusive, and a future phantom amendment) or dropped (silently missing).</li>
+        <li><b>A modifier modifying a modifier.</b> Solved by making applicability an expression tree and tagging each change with its source clause — then always flagged, because <i>"the exemption shall not apply to X"</i> is a double negative humans misread too.</li>
+      </ul>
+    </details>
+  </div>
+</article>
+
+<!-- 13 -->
+<article class="step" id="s13">
+  <div class="step-head"><span class="step-n">13</span><span class="step-name">Resolve the data-points</span><span class="step-tag">mostly built</span></div>
+  <div class="step-body">
+    <p class="step-does">Turn invented words into permanent ids, so one real fact exists once.</p>
+    <div class="io"><span class="chip"><b>IN</b> rules full of free-text tokens</span><span class="arw">→</span><span class="chip"><b>OUT</b> rules pointing at registry ids</span></div>
+
+    <div class="callout">
+      <span class="tag">The idea</span>
+      <p>
+        Contacts on a phone. You tap <b>"Mom"</b> and it dials a number. Different people
+        save her as <i>Mother</i>, <i>Amma</i>, <i>Mom</i> — one actual line. The AI invents
+        a label every time it reads a clause: <code>aud_dt</code>,
+        <code>last_audit_date</code>, <code>audit_completion_date</code>. Three labels,
+        <b>one fact</b>.
+      </p>
+    </div>
+
+    <div class="dia"><pre><b>THE FUNNEL, PER TOKEN</b>
+
+1  one description line   "name: audit_last_date.
+                           meaning: the date the last cyber audit was carried out.
+                           topic: cybersecurity_audit"
+2  embed it               batched, 128 at a time
+3  find the 5 nearest existing data-points by meaning
+4  <span class="bad">⛔ TYPE GATE</span>          a date can NEVER merge with a count,
+                          however similar the wording
+5  same-name tripwire     does any name or alias exactly match?
+6  decide                 tripwire hit    → <span class="wr">JUDGE (always)</span>
+                          < 0.15          → <span class="hl">REUSE</span>
+                          0.15 – 0.45     → <span class="wr">JUDGE</span>
+                          > 0.45          → CREATE NEW
+7  reuse → record the new spelling as an alias (audit trail only)
+   new   → create it and embed it IMMEDIATELY, so the next token finds it</pre></div>
+
+    <h3>The rule that's easy to get wrong</h3>
+    <div class="dia"><pre>The audience must <span class="bad">NEVER</span> enter the description line.
+
+           data-point #41  "date of last cyber audit"
+                  ONE register entry
+                    ↑              ↑
+       [QSB] rule ≤180d      [non-QSB] rule ≤90d
+
+Ask what goes on the intake form:
+   "When did you last complete your cyber security audit?"
+   → <span class="hl">ONE question</span>, asked of both, identical words.
+     What differs is the pass mark — which lives on the RULE.
+
+<b>Audience separates RULES. It does not separate FACTS.</b></pre></div>
+
+    <ul class="logic">
+      <li><b>Definitions resolve first</b>, whatever the document order — otherwise a rule using <code>net_worth</code> creates it as an ordinary fact, and the form asks the broker for a number that should have been computed.</li>
+      <li><b>Sequential by design.</b> A fact created by clause 1.1 must be visible to clause 1.4. Run it in parallel and both look into an empty register and both create it.</li>
+      <li><b>Measured:</b> 2,228 tokens on the master circular → 1,960 created, 268 reused, 311 judged. The false-merge guard fired for real — one token name appearing across 4 different topics was kept as <b>six separate facts</b> rather than merged on a matching name.</li>
+    </ul>
+
+    <details><summary>Where it breaks</summary>
+      <p><b>Three risks that mock mode structurally cannot show</b>, because its embeddings are random and its judge is instant local code:</p>
+      <ul>
+        <li><b>Judge-call volume is unknown.</b> All 311 calls came from the tripwire; the vector band never fires under mock. In production it could be 5% or 30% of tokens — the difference between ~100k and ~700k AI calls across a corpus.</li>
+        <li><b>Throughput.</b> 2,228 tokens resolve in under a second today because there's no real AI call in the loop. Add a ~1s judge call to a sequential loop and a bulk load becomes days. Likely fix: resolve the deterministic ones first, batch the judge cases.</li>
+        <li><b>Cold-start naming is a build gap, not a test gap.</b> Today's greedy path lets whichever circular is processed first name everything — <code>aud_dt</code> from 2019 beating <code>last_audit_date</code> used 400 times. Bulk load needs to cluster all mentions first and pick names by frequency.</li>
+      </ul>
+    </details>
+  </div>
+</article>
+
+<article class="step" id="s14">
+  <div class="step-head"><span class="step-n">14</span><span class="step-name">Canonical rewrite &amp; fingerprints</span><span class="step-tag">partly built · has a bug</span></div>
+  <div class="step-body">
+    <p class="step-does">Give every rule a fixed identity — so we recognise it again when it changes.</p>
+    <div class="io"><span class="chip"><b>IN</b> rules with an audience and registry ids</span><span class="arw">→</span><span class="chip"><b>OUT</b> rules with two hashes</span></div>
+
+    <div class="callout">
+      <span class="tag">The idea</span>
+      <p>
+        A master circular reissued each year repeats hundreds of rules word for word.
+        An amendment changes <b>one number in one of them</b>. Compare the text and
+        everything looks different every year. So each rule gets two hashes: one for
+        <i>"is this the same duty?"</i>, one for <i>"has anything changed?"</i>
+      </p>
+    </div>
+
+    <div class="dia"><pre><b>TWO HASHES</b>
+
+IDENTITY   audience  +  data-points  +  the SHAPE of the test   <span class="wr">values removed</span>
+FULL       identity  +  the values                              everything
+
+
+<b>WHICH GIVES A THREE-WAY VERDICT</b>
+
+  identity      full        meaning
+  ────────────────────────────────────────────────────────────────
+  match         match       <span class="hl">RESTATEMENT</span>  master circular repeating a rule
+  match         differs     <span class="hl">AMENDMENT</span>    same duty, the value moved
+  no match      —           NEW RULE
+
+The middle row is the entire point.
+<code>audit interval ≤ 180</code> and <code>≤ 90</code> must collide on identity —
+<b>that collision IS the detection.</b></pre></div>
+
+    <h3>Why the hash is built on a tree, not on text</h3>
+    <div class="dia"><pre>The AI rephrases the same duty between circulars.
+Every variance would manufacture a phantom new rule:
+
+   days_between(a, b) &lt;= 180     →  hash X
+   180 &gt;= days_between(a, b)     →  hash Y     <span class="bad">same duty, different hash</span>
+   x AND y                       →  hash P
+   y AND x                       →  hash Q     <span class="bad">same duty, different hash</span>
+
+So the expression is parsed into a tree, then <b>canonicalised</b>:
+
+   1  comparisons face one way    180 &gt;= x   →   x &lt;= 180
+   2  commutative operands sorted y AND x    →   x AND y
+   3  structure replaces punctuation — brackets stop existing
+   4  serialise deterministically  →  hash THAT
+
+<span class="hl">The parser already exists</span> — ast_parse.py builds this tree today
+and then throws it away, returning only flat lists.</pre></div>
+
+    <h3 class="bad">⚠ The bug in what's built</h3>
+    <div class="dia"><pre>The code hashes the expression <b>only</b>. The audience never enters it.
+
+  QSB       days_between(...) &lt;= 180   → masked →  #4471&lt;=NUM  →  abc123
+  Non-QSB   days_between(...) &lt;= 90    → masked →  #4471&lt;=NUM  →  abc123
+                                                                  <span class="bad">^^^^^^
+                                                            THE SAME HASH</span>
+
+So the non-QSB rule files as an <b>amendment of the QSB rule</b>.
+180 is superseded by 90. Two coexisting duties collapse into one
+wrong one — <span class="bad">no error, no flag, a quietly incorrect rulebook.</span>
+
+<b>Fix:</b> put audience_id into the identity hash. The smallest edit
+in the step, and the one that must land before any bulk load.</pre></div>
+
+    <h3>The decision: audience by <i>id</i>, not by <i>shape</i></h3>
+    <div class="tw">
+      <table>
+        <thead><tr><th></th><th>A threshold change reads as…</th><th>The risk</th></tr></thead>
+        <tbody>
+          <tr><td><b>by shape</b><br><code>[clients] &gt; NUM</code></td><td>5,000 → 10,000 keeps identity → clean amendment</td><td class="no"><code>=='stock_broker'</code> and <code>=='mutual_fund'</code> <b>both mask to <code>[category]==STR</code></b> — a brokers' duty and a mutual-funds' duty become the same rule</td></tr>
+          <tr><td><b>by id</b> ✓<br><code>audience #7</code></td><td>mints a new audience → files as a new rule, old one orphaned</td><td class="yes">a duplicate sits in the review queue</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="dia"><pre><b>WHY</b> — the two errors are not symmetric:
+
+   a false AMENDMENT   overwrites a live obligation, <span class="bad">invisibly</span>
+   a false NEW RULE    leaves a duplicate <span class="hl">where a human sees it</span>
+
+   <b>When you are going to be wrong, be wrong LOUDLY.</b>
+
+By-shape reintroduces the exact disease the audience was added to cure —
+silent cross-population merging — just at the category level.</pre></div>
+
+    <ul class="logic">
+      <li><b>Names never enter the hash — only ids.</b> <code>[Cyber.last_audit_date]</code> → <code>#4471</code>, so topic spelling, the AI's naming whim and any later cosmetic rename are all irrelevant to identity.</li>
+      <li><b>Hashes stay recomputable.</b> Identity is built from registry ids, so Step 13's cold-start clustering invalidates every hash in the database the day it merges attributes. Each rule stores its <i>inputs</i> — audience id, sorted attribute ids, canonical tree — making a registry migration a re-derivation rather than a rebuild.</li>
+      <li><b>Three changes to build it:</b> return the tree from the parser · add the canonicaliser · put the audience in the hash. The funnel around it already works.</li>
+    </ul>
+
+    <details><summary>Where it breaks</summary>
+      <ul>
+        <li><b>Structural amendments are invisible to the hash.</b> When an amendment <i>adds</i> a condition — <code>interval &lt;= 90</code> becoming <code>interval &lt;= 90 AND scope includes cloud</code> — the data-point set changed, so identity misses and it files as new. This is <b>common</b>. Which is why the fingerprint is <b>one lane of three</b>: Step 15 also matches on citations (regulators usually say <i>"this modifies para 9.5"</i> outright) and on fuzzy same-audience overlap. Overselling the hash as a complete amendment detector is the mistake to avoid.</li>
+        <li><b>Operator flips file as new.</b> <i>"at least 180 days"</i> → <i>"at most 180 days"</i> changes the shape. Rare, lands in review, acceptable.</li>
+        <li><b>Attestable rules have nothing to parse.</b> Much of SEBI's text is <i>"shall maintain adequate systems and procedures"</i> — no operators, no data-points, no literals. Fallback identity: audience + attribute ids + a hash of the normalised sentence. Genuinely weaker, and there's no way around it — <b>prose cannot be diffed structurally.</b> The alternative isn't a better hash; it's a human.</li>
+      </ul>
+    </details>
+  </div>
+</article>
+
+<article class="step" id="s15">
+  <div class="step-head"><span class="step-n">15</span><span class="step-name">Filing</span><span class="step-tag">designed</span></div>
+  <div class="step-body">
+    <p class="step-does">Where the rule finally meets the graph — new, repeated, changed, or withdrawn.</p>
+    <div class="io"><span class="chip"><b>IN</b> fingerprinted rules + the circular's dates</span><span class="arw">→</span><span class="chip"><b>OUT</b> an event log the graph is replayed from</span></div>
+
+    <div class="callout">
+      <span class="tag">The idea</span>
+      <p>
+        Everything before this turns prose into a well-formed rule. <b>This is the step
+        all of it exists to reach.</b> The hashes from Step 14 are computed today but
+        <i>nothing reads them</i> — every rule inserts as new. Step 15 is the missing
+        reader.
+      </p>
+    </div>
+
+    <div class="dia"><pre><b>FIVE VERDICTS</b>
+
+  identity   full     verdict
+  ──────────────────────────────────────────────────────────────────
+  ✓          ✓        <span class="hl">RESTATEMENT</span>  nothing changes; add a source span
+                                   <i>the most common outcome at scale</i>
+  ✓          ✗        <span class="hl">AMENDMENT</span>    same duty, value moved → version it
+  no match   —        NEW RULE     insert, version 1, ACTIVE
+  <span class="wr">— no incoming rule at all —</span>  <span class="bad">REPEAL</span>       an existing rule goes SUPERSEDED
+  partial / multiple  AMBIGUOUS    review queue, nothing committed
+
+<b>REPEAL is the one that's easy to design past.</b>
+"Para 9.5 stands withdrawn" produces <span class="bad">no rule to match</span> — there is
+nothing to fingerprint. Only the citation lane can reach it.</pre></div>
+
+    <h3>Three lanes, not one</h3>
+    <div class="dia"><pre>LANE 1 · <b>FINGERPRINT</b>   exact identity_hash lookup
+                        deterministic · free · catches VALUE changes
+                        <span class="bad">blind to everything else</span>
+
+LANE 2 · <b>CITATION</b>      the circular says so, in words:
+                        "this partially modifies para 9.5 of
+                         SEBI/HO/MIRSD/2023/45"
+                        citation → document → clauses → obligations
+                        <span class="hl">the ONLY lane that sees structural
+                        amendments and repeals</span>
+
+LANE 3 · <b>FUZZY</b>         same audience + overlapping data-points
+                        + similar meaning
+                        → produces CANDIDATES, never decisions
+
+<b>When lane 1 and lane 2 disagree, LANE 2 WINS.</b>
+The hash is an inference. The citation is a fact.</pre></div>
+
+    <h3 class="bad">⚠ The ordering problem</h3>
+    <div class="dia"><pre>Amendments only mean anything in <b>effective-date order</b>.
+A bulk load arrives in whatever order the download gave you:
+
+   ingest the 2026 amendment first  →  no match     →  files as NEW
+   ingest the 2023 original second  →  identity ✓   →  files as an
+                                       AMENDMENT moving 90 back to 180
+
+   <span class="bad">The graph says 180. SEBI says 90.
+   No error. Nothing looks wrong.</span>
+
+Sorting the corpus by date fixes the bulk load and <b>fails in the steady
+state</b> — circulars apply retroactively, so one arriving in March can be
+effective from January, after statuses were already computed.</pre></div>
+
+    <div class="dia"><pre><b>FROZEN: EVENT REPLAY</b>
+
+Filing does not mutate the graph. It <b>appends</b> an assertion:
+
+        document D asserts rule R, effective E, verdict V
+
+The live graph is a <span class="hl">PROJECTION</span> — replay the log in effective-date
+order. A late retroactive circular inserts an event and replays
+from its date.
+
+Not new architecture — <b>Layer C's rule applied one level up.</b>
+The graph is recomputed, never edited.
+
+It also buys the otherwise-unbuildable question:
+   <i>"what did we believe on 12 March?"</i>  →  replay to that date.
+An audit pack that can't reconstruct a past belief isn't an audit pack.</pre></div>
+
+    <h3>Frozen: amendments are staged, never auto-applied</h3>
+    <div class="dia"><pre>   restatement  →  <span class="hl">AUTO</span>      nothing changes; provenance only
+   new rule     →  <span class="hl">AUTO</span>      inserted ACTIVE; flips nobody
+   amendment    →  <span class="wr">STAGED</span>    new version written PROPOSED
+                             old version stays ACTIVE until approved
+
+<b>The reason is not caution — the approval step IS the product.</b>
+
+An amendment is the only verdict that can flip a firm from compliant
+to breaching. Auto-applying it deletes the exact moment the whole
+amendment console exists to show:
+
+     <i>SEBI issued this → here is precisely which firms change → approve</i></pre></div>
+
+    <ul class="logic">
+      <li><b>Identity matching more than one ACTIVE rule never auto-files.</b> Trivial shapes like <code>x == true</code> are low-entropy and collide across unrelated duties. A multi-match is evidence the hash isn't discriminating — not evidence of an amendment.</li>
+      <li><b>Schema work gates this and Step 14.</b> <code>obligations.audienceId</code> <b>does not exist</b>, so Step 14's frozen decision can't be built. Plus <code>hashInputs</code>, the <code>rule_assertions</code> event log, and <code>unresolved_citations</code>. <code>obligation_versions</code> already has the right shape.</li>
+    </ul>
+
+    <details><summary>Where it breaks</summary>
+      <ul>
+        <li><b>Citations into documents we don't have.</b> A 2024 circular amending a 2019 one that was never ingested. Store the citation <i>unresolved</i>, resolve it retroactively when that document lands — Step 16's machinery, so a dependency rather than a new problem.</li>
+        <li><b>Silent duplicates.</b> A master circular restates a rule, but Step 13 resolved one token to a different data-point this time, so the shape differs and it files as new. Two copies of one duty, both ACTIVE, no error raised. Only lane 3 finds it, and only if someone reads the queue. <b>No clean fix</b> — it's the standing cost of a pipeline with AI upstream of a hash.</li>
+        <li><b>Vague repeals.</b> <i>"All previous instructions on this subject stand withdrawn"</i> cites nothing resolvable. Review queue, and realistically a human has to read the circular.</li>
+      </ul>
+    </details>
+  </div>
+</article>
+
+<article class="step" id="s16">
+  <div class="step-head"><span class="step-n">16</span><span class="step-name">Link resolution</span><span class="step-tag">designed</span></div>
+  <div class="step-body">
+    <p class="step-does">Turn <i>"para 9.5.3.1"</i> into an actual edge between two rules.</p>
+    <div class="io"><span class="chip"><b>IN</b> citation strings parked at Step 9</span><span class="arw">→</span><span class="chip"><b>OUT</b> a linked graph</span></div>
+
+    <div class="callout">
+      <span class="tag">Why it waits until now</span>
+      <p>
+        A link joins two <b>rules</b> — and rules don't have ids until Step 15 files them.
+        Detection had to happen early (Step 9 needed it to build windows); resolution
+        could only happen here.
+      </p>
+    </div>
+
+    <h3>Most citations are already gone</h3>
+    <div class="dia"><pre>Four of the five citation kinds are consumed <b>before</b> Step 16:
+
+  "shall have the meaning assigned in para X"   <span class="wr">Step 9</span>   inlined
+  "nothing in para X shall apply to…"           <span class="wr">Step 12</span>  → modifier
+  "this partially modifies para 9.5"            <span class="wr">Step 15</span>  → amends
+  "para 9.5 stands withdrawn"                   <span class="wr">Step 15</span>  → supersedes
+  "where unable to comply with para X…"         <span class="hl">nobody yet</span>  → depends_on
+
+<b>So Step 16 is four narrow jobs, not "resolve all citations":</b>
+
+  1  depends_on      conditional triggers — the only kind left
+  2  shared_evidence <span class="hl">not citation-derived at all</span> — computed from overlap
+  3  the retry sweep citations parked waiting for their document
+  4  split_of        one clause yielding several rules</pre></div>
+
+    <h3>A citation names a CLAUSE. An edge joins RULES.</h3>
+    <div class="dia"><pre>   clause 9.5.3.2 cites "para 9.5.3.1"
+            ↓
+   but 9.5.3.1 produced <b>THREE rules</b> — a clause routinely yields several
+            ↓
+   which one does the exception-report duty depend on?
+
+<b>The answer depends on the edge type:</b>
+
+  depends_on            <span class="hl">FAN OUT</span> to every rule from that clause
+                        over-linking is recoverable — evaluation walks
+                        it and finds nothing wrong
+
+  amends / supersedes   <span class="bad">MUST BE PRECISE</span>
+                        amending three rules when SEBI meant one
+                        corrupts the graph → ambiguous goes to review
+
+<b>Fan out where being wrong is loud. Stop where it's silent.</b></pre></div>
+
+    <div class="dia"><pre><b>THE RETRY SWEEP — event replay pays off a second time</b>
+
+A 2024 circular cites a 2019 one we haven't ingested. Step 15 parks it.
+When 2019 lands, a sweep asks <i>"who was waiting for me?"</i>
+
+But that can change a <b>past filing verdict</b> — a rule filed as NEW in
+2024 turns out to have amended a 2019 rule all along.
+
+   without an event log   <span class="bad">history must be rewritten in place</span>
+   with one (Step 15a)    <span class="hl">append a correction event, replay</span>
+
+This wasn't why event replay was chosen — which is usually the sign
+a structural decision was right.</pre></div>
+
+    <ul class="logic">
+      <li class="bad"><b>⚠ Schema gap — an edge cannot be explained.</b> <code>edges</code> holds only <code>fromId · toId · type · createdAt</code>. No citing clause, no span, no confidence. An auditor can't be shown <i>why</i> the graph believes A depends on B.</li>
+    </ul>
+
+    <details><summary>Where it breaks</summary>
+      <ul>
+        <li><b>Cycles.</b> <code>A → B → C → A</code>. Step 24 walks these during evaluation, so a cycle is an <b>infinite loop in the product's hot path</b>. Detection must happen <b>at insert time</b> — caught at evaluation it's a production hang, and the firm whose status triggered it is the one who sees it.</li>
+        <li><b>Bare numbers.</b> <code>clause_no</code> isn't a key — <i>"1"</i> appears 153× in CSCRF. Resolve within the citing clause's own subtree first, then document-wide, then review.</li>
+        <li><b>Citations outside the corpus.</b> <i>"Regulation 9(2) of SEBI (Stock Brokers) Regulations, 1992"</i> — a document class we may never ingest. Store as an external reference; no edge, still shown as provenance.</li>
+        <li><b>Annexures and forms.</b> <i>"as per Annexure A"</i> targets a template, not a rule.</li>
+      </ul>
+    </details>
+  </div>
+</article>
+
+<article class="step" id="s17">
+  <div class="step-head"><span class="step-n">17</span><span class="step-name">Consistency checks</span><span class="step-tag">designed</span></div>
+  <div class="step-body">
+    <p class="step-does">Ask the question nothing before it could — does the graph agree with itself?</p>
+    <div class="io"><span class="chip"><b>IN</b> the whole projected graph</span><span class="arw">→</span><span class="chip"><b>OUT</b> a triaged findings list</span></div>
+
+    <div class="callout">
+      <span class="tag">The idea</span>
+      <p>
+        This is the capability nothing on the market has — and it's available only
+        because Steps 10, 13 and 15 produced <b>machine-readable audiences</b>, a
+        <b>canonical data-point registry</b>, and one graph holding both. Without all
+        three, "do these two rules conflict?" is unanswerable.
+      </p>
+    </div>
+
+    <div class="dia"><pre><b>THE HEADLINE CHECK — CONTRADICTION</b>
+
+  Rule A   audience = QSB             cyber_audit_interval &lt;= 180
+  Rule B   audience = stock brokers   cyber_audit_interval &gt;= 365
+
+  QSB ⊂ stock broker     →  the audiences <b>OVERLAP</b>
+  same data-point #4471  →  the ranges <b>cannot both hold</b>
+                         →  <span class="bad">no QSB can comply with both</span>
+
+Two machines do this, and <b>both already exist</b>:
+   audience overlap    → a lattice-implication check  (Step 10)
+   expression conflict → interval arithmetic on one attribute id</pre></div>
+
+    <div class="dia"><pre><b>FOUR FAMILIES OF FINDING</b>
+
+  1  CONTRADICTION   two ACTIVE rules no single firm can satisfy
+  2  DEAD RULE       unsatisfiable audience · missing category ·
+                     SUPERSEDED with no successor
+  3  REDUNDANCY      two ACTIVE rules sharing an identity_hash
+                     <span class="hl">← exactly the silent duplicate Step 15 couldn't catch</span>
+  4  INTEGRITY       missing source spans (the audit pack breaks) ·
+                     edges into superseded rules · cycles ·
+                     registry entries no rule references</pre></div>
+
+    <h3>Scoped deliberately: single-attribute interval conflicts</h3>
+    <div class="dia"><pre>General satisfiability is an <b>SMT problem</b> — slow, and it produces
+findings nobody can act on. It's also unnecessary:
+
+<b>Real regulatory contradictions are almost always two different
+numbers for the same duty</b> — two deadlines, two thresholds,
+two frequencies.
+
+   <span class="hl">IN SCOPE</span>       same attribute id, operators with disjoint ranges
+   <span class="wr">OUT OF SCOPE</span>   multi-variable satisfiability, cross-attribute maths
+
+<b>COST.</b> Pairwise is O(n²) — 2.5 <i>billion</i> pairs at 50,000 obligations.
+But two rules can only contradict if they <b>share an attribute</b>, so
+bucket by attribute id first. Most attributes appear in a handful of
+rules → the work collapses to near-linear.</pre></div>
+
+    <h3 class="bad">⚠ A contradiction is usually OUR bug, not SEBI's</h3>
+    <div class="dia"><pre>Most findings will trace back to:
+
+   a mis-resolved audience                 <span class="wr">Step 10</span>
+   two facts wrongly merged                <span class="wr">Step 13</span>
+   a modifier applied to the wrong target  <span class="wr">Step 12</span>
+   an unnormalised unit                    <span class="wr">Step 11</span>
+
+<b>Not to SEBI issuing conflicting requirements.</b>
+
+So Step 17 isn't only a feature — it's <span class="hl">the pipeline's regression test</span>.
+It's the ONLY check that can catch a Step 10 or Step 13 error after
+the fact, because it compares rules against <b>each other</b> rather than
+against the document they came from.
+
+<b>Which is why it's worth building EARLY, not last.</b>
+Run it on a two-document corpus and it audits every step before it.</pre></div>
+
+    <details><summary>Where it breaks</summary>
+      <ul>
+        <li><b>One bad audience floods the queue.</b> If Step 10 wrongly merged two audiences, <i>every</i> rule pair beneath them looks contradictory — hundreds of findings, one cause. Cluster by probable root cause and show the cause once. <b>A findings list that can't be triaged won't be read.</b></li>
+        <li><b>Unit mismatches look like contradictions.</b> <code>&lt;= 180 days</code> vs <code>&lt;= 6 months</code> is the same rule twice. Step 11 normalises time to days — but any unnormalised unit produces a phantom, and the check can't tell.</li>
+        <li><b>Conditional rules.</b> Two rules that look contradictory but are gated by preconditions that never co-occur. Checked at lower confidence and reported separately.</li>
+        <li><b>Sometimes the regulation really does contradict itself.</b> A later circular can conflict with an earlier one without formally amending it. The system can't resolve that — only surface it. <b>Which is arguably the most valuable thing it produces</b>, and the one output no existing compliance tool can generate at all.</li>
+      </ul>
+    </details>
+  </div>
+</article>
+
+<section>
+  <h2>Five principles that recur everywhere</h2>
+
+  <div class="tw">
+    <table>
+      <thead><tr><th>Principle</th><th>What it means in practice</th></tr></thead>
+      <tbody>
+        <tr>
+          <td><b>Embeddings retrieve.<br>Symbols decide.</b></td>
+          <td>Similarity narrows the candidates; something exact and checkable makes the call. Every product that lets a similarity score <i>decide</i> stays a demo.</td>
+        </tr>
+        <tr>
+          <td><b>The AI is never the<br>first responder or the last word.</b></td>
+          <td>Cheap deterministic check → tripwire → targeted adjudication with a specific complaint → verify the answer with the same check. Used by the attribute funnel, the numbering audit and number fidelity.</td>
+        </tr>
+        <tr>
+          <td><b>Fail toward visible.</b></td>
+          <td>Every unresolved case becomes a question in a queue, never a silent decision. A regulator accepts "16 items flagged for review"; never "an obligation was quietly dropped".</td>
+        </tr>
+        <tr>
+          <td><b>Buy the expensive layer once.</b></td>
+          <td>AI output is cached forever and keyed by content. The clever logic on top is free to re-run — so it can be improved fifty times a day without re-paying for extraction.</td>
+        </tr>
+        <tr>
+          <td><b>Never show a number<br>that came from a model.</b></td>
+          <td>Review screens state applicability in plain English, generated from the rule itself. A fabricated firm count sitting in a compliance screen looks authoritative and is worse than no number.</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section>
+  <h2>What actually runs today</h2>
+  <div class="tw">
+    <table>
+      <thead><tr><th>Steps</th><th>State</th><th>Notes</th></tr></thead>
+      <tbody>
+        <tr><td>1 → 8</td><td class="yes">built &amp; tested</td><td>End to end on real SEBI circulars. <b>⚠ Step 8's length rule has a measured bug</b> — it deletes short audience definitions</td></tr>
+        <tr><td>9</td><td class="no">partly</td><td>Windows built; sibling inclusion and reference inlining designed</td></tr>
+        <tr><td>10</td><td class="no">designed</td><td>None built. <b>⚠ And handles only Pattern A</b> — a multi-entity circular's audiences are invisible to it</td></tr>
+        <tr><td>11</td><td class="no">partly</td><td>Drafting and validation run; modifiers, typed expressions and the cache are designed</td></tr>
+        <tr><td>12</td><td class="no">designed</td><td>No assembly phase exists yet — the largest gap between this document and the code</td></tr>
+        <tr><td>13</td><td class="yes">mostly built</td><td>Funnel, tripwire, judge and provenance all run; type gate and cold-start clustering designed</td></tr>
+        <tr><td>14</td><td class="no">partly</td><td>Both hashes compute today. <b>⚠ But the audience is missing from the identity hash</b> — a live bug that mis-files coexisting duties as amendments. Tree canonicalisation designed</td></tr>
+        <tr><td>15</td><td class="no">designed</td><td>None built. The hashes are written but <b>never read</b> — every rule inserts as new. Needs the event log and the schema additions</td></tr>
+        <tr><td>16</td><td class="no">designed</td><td>None built. Needs <code>edges</code> provenance columns and insert-time cycle detection</td></tr>
+        <tr><td>17</td><td class="no">designed</td><td>None built — but it's the pipeline's regression test, so it earns its place <b>early</b> rather than last</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p style="margin-top:1.2rem;color:var(--muted);font-size:0.92rem">
+    <b>Flow A is now designed end to end</b> — what remains for the pipeline is
+    construction, not design. Next come the onboarding, evaluation and amendment flows.
+    <b>Five schema additions gate Steps 14–16</b> and must land before any bulk load.
+  </p>
+</section>
+
+<section>
+  <h2>The test corpus</h2>
+  <p class="lead">
+    Every number on this page was produced by running the real parser over these
+    documents. Nothing here is estimated.
+  </p>
+  <div class="tw">
+    <table>
+      <thead><tr><th>Document</th><th>Pages</th><th>Why it's in the corpus</th></tr></thead>
+      <tbody>
+        <tr><td>QSB circular (2024/14)</td><td>5</td><td>smallest real case</td></tr>
+        <tr><td><b>Master Circular · Stock Brokers</b></td><td>419</td><td>the single-intermediary baseline</td></tr>
+        <tr><td><b>CSCRF</b> (Aug 2024)</td><td>205</td><td>multi-entity — 22 types across 5 tiers</td></tr>
+        <tr><td>Master Circular · Mutual Funds</td><td>828</td><td>largest; a different SEBI department</td></tr>
+        <tr><td>Master Circular · Investment Advisers</td><td>83</td><td>small master circular</td></tr>
+        <tr><td>Master Circular · Research Analysts</td><td>53</td><td>small master circular</td></tr>
+        <tr><td><b>Cloud Services Framework</b> (2023)</td><td>53</td><td>multi-entity, <i>different</i> structure — revealed Pattern C</td></tr>
+        <tr><td><b>RBI · IT Outsourcing Master Direction</b></td><td>31</td><td><b>different regulator</b> — revealed the numbering limit</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>What measurement overturned</h3>
+  <div class="tw">
+    <table>
+      <thead><tr><th>Design</th><th>Fate</th></tr></thead>
+      <tbody>
+        <tr><td>Sibling-inclusion heuristic (broad "the + noun")</td><td class="no">discarded — fires mostly on list fragments the lead-in already covers</td></tr>
+        <tr><td>Always include the previous sibling</td><td class="no">discarded — +23% tokens everywhere to fix ~2% of clauses</td></tr>
+        <tr><td>Step 10's phrase gate</td><td class="no">discarded — <b>3 hits in ~511 headings</b> across 2 regulators</td></tr>
+        <tr><td>Property retrieval out of ~600</td><td class="no">unnecessary — the real vocabulary is tens, not hundreds</td></tr>
+        <tr><td>Step 8's under-15-character rule</td><td class="no">has a measured bug — deletes short audience definitions</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p style="color:var(--muted);font-size:0.92rem">
+    Each of those was argued for before being measured. The scripts that killed them run
+    in about twenty minutes against already-parsed clauses.
+  </p>
+</section>
+
+<footer class="end">
+  Setu · companion to docs/product-logic.md · steps 1–13 of the ingestion pipeline
+</footer>
+
+</div>
+
+</html>

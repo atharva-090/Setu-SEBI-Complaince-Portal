@@ -12,7 +12,7 @@ export class User {
   @Column()
   passwordHash: string;
 
-  @Column()
+  @Column('text')
   role: Role;
 
   @Column('uuid', { nullable: true })

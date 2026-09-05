@@ -13,13 +13,13 @@ export class Evaluation {
   @Column('uuid')
   tenantId: string;
 
-  @Column()
+  @Column('text')
   status: EvalStatus;
 
   @Column({ nullable: true })
   reason: string;
 
-  @Column({ nullable: true })
+  @Column('text', { nullable: true })
   method: EvalMethod;
 
   @Column('jsonb', { nullable: true })

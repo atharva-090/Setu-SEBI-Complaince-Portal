@@ -28,6 +28,10 @@ CREATE TABLE IF NOT EXISTS source_clauses (
   char_start  INTEGER,
   char_end    INTEGER,
   text        TEXT NOT NULL,
+  is_title    BOOLEAN NOT NULL DEFAULT false,   -- carries the document subject line
+  title_text  TEXT,                             -- "Master Circular for Stock Brokers"
+  audience_id INTEGER,                          -- FK added below: audiences is
+  audience_source TEXT,                         -- declared later in this file
   embedding   vector(1536),
   created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
 );
@@ -46,6 +50,38 @@ CREATE TABLE IF NOT EXISTS attributes (
   created_at     TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
+-- 4.2b audiences — the applicability layer (Step 10)
+-- An audience is a SET OF FIRMS, so it is matched by its normalised test
+-- character-for-character (predicate_hash), never by name similarity.
+CREATE TABLE IF NOT EXISTS audiences (
+  id             SERIAL PRIMARY KEY,
+  label          TEXT NOT NULL,
+  predicate      TEXT NOT NULL,                 -- category=='stock_broker' && is_qsb==true
+  predicate_hash TEXT NOT NULL UNIQUE,          -- rung 3: exact match on the TEST
+  properties     TEXT[] NOT NULL DEFAULT '{}',
+  aliases        TEXT[] NOT NULL DEFAULT '{}',  -- headings that resolved here
+  pattern        TEXT,                          -- C|A|B
+  created_from   TEXT,
+  created_at     TIMESTAMPTZ NOT NULL DEFAULT now(),
+  -- Step 10e: creating an audience needs a human click. A wrongly created
+  -- audience splits one group into two branches, and nothing downstream can
+  -- detect it because both branches look valid.
+  state           TEXT NOT NULL DEFAULT 'PROPOSED',   -- PROPOSED|APPROVED
+  confidence      REAL,
+  approved_by     TEXT,
+  approved_at     TIMESTAMPTZ
+);
+
+-- The lattice is a DAG, not a tree: one audience can be narrower than several.
+CREATE TABLE IF NOT EXISTS audience_edges (
+  narrower_id INTEGER NOT NULL REFERENCES audiences(id) ON DELETE CASCADE,
+  broader_id  INTEGER NOT NULL REFERENCES audiences(id) ON DELETE CASCADE,
+  derivation  TEXT,
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
+  PRIMARY KEY (narrower_id, broader_id),
+  CHECK (narrower_id <> broader_id)
+);
+
 -- 4.3 obligations — the stored, executable rule
 CREATE TABLE IF NOT EXISTS obligations (
   id              SERIAL PRIMARY KEY,
@@ -56,8 +92,16 @@ CREATE TABLE IF NOT EXISTS obligations (
   attribute_ids   INTEGER[] NOT NULL DEFAULT '{}',
   obligation_type TEXT NOT NULL DEFAULT 'computable',  -- computable|attestable
   context         TEXT,
-  identity_hash   TEXT,                          -- SHA-256 of (context+action+roles), value excluded
+  audience_id     INTEGER CONSTRAINT fk_obligations_audience
+                          REFERENCES audiences(id) ON DELETE SET NULL,
+  -- Which clause produced this rule (Step 16). A citation names a CLAUSE and an
+  -- edge joins RULES; this is the map between them. SET NULL, not CASCADE: a
+  -- re-ingest replaces clause rows and the rule must survive it.
+  source_clause_id INTEGER CONSTRAINT fk_obligations_source_clause
+                          REFERENCES source_clauses(id) ON DELETE SET NULL,
+  identity_hash   TEXT,                          -- audience + attribute ids + masked shape
   full_hash       TEXT,                          -- identity + literal values
+  hash_inputs     JSONB,                         -- what went into the hashes (recomputable)
   source_spans    JSONB NOT NULL DEFAULT '[]',
   version         INTEGER NOT NULL DEFAULT 1,
   state           TEXT NOT NULL DEFAULT 'ACTIVE', -- PROPOSED|ACTIVE|REVIEW|SUPERSEDED
@@ -85,7 +129,65 @@ CREATE TABLE IF NOT EXISTS edges (
   from_id    INTEGER NOT NULL REFERENCES obligations(id) ON DELETE CASCADE,
   to_id      INTEGER NOT NULL REFERENCES obligations(id) ON DELETE CASCADE,
   type       TEXT NOT NULL,                      -- amends|supersedes|split_of|depends_on|shared_evidence
+  source_citation JSONB,                         -- citing clause + span: why this edge exists
+  confidence REAL,
+  state      TEXT NOT NULL DEFAULT 'ACTIVE',     -- ACTIVE|REVIEW
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+-- rule_assertions — the append-only event log (Step 15a). Filing appends
+-- "document D asserts rule R, effective E, verdict V"; the live graph is a
+-- projection replayed in effective-date order.
+CREATE TABLE IF NOT EXISTS rule_assertions (
+  seq            BIGSERIAL PRIMARY KEY,
+  doc_id         TEXT NOT NULL,
+  -- Plain references, deliberately NOT foreign keys. This table is append-only
+  -- (see the trigger below) and a cascading SET NULL is an UPDATE, so a FK here
+  -- makes deleting any referenced obligation fail — which every re-ingest does.
+  -- The log records what was believed at the time and must outlive the
+  -- projection it produced. See alter-003.sql.
+  clause_id      INTEGER,
+  obligation_id  INTEGER,
+  audience_id    INTEGER,
+  identity_hash  TEXT,
+  full_hash      TEXT,
+  verdict        TEXT NOT NULL,   -- restatement|amendment|new|repeal|ambiguous
+  lane           TEXT,            -- fingerprint|citation|fuzzy
+  effective_from DATE NOT NULL,   -- replay order. NOT the ingestion date.
+  payload        JSONB NOT NULL DEFAULT '{}',
+  corrects_seq   BIGINT REFERENCES rule_assertions(seq) ON DELETE SET NULL,
+  note           TEXT,
+  created_at     TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE OR REPLACE FUNCTION rule_assertions_append_only() RETURNS trigger AS $fn$
+BEGIN
+  RAISE EXCEPTION
+    'rule_assertions is append-only (attempted %). Append a correcting row with corrects_seq instead.',
+    TG_OP;
+END $fn$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS trg_rule_assertions_append_only ON rule_assertions;
+CREATE TRIGGER trg_rule_assertions_append_only
+  BEFORE UPDATE OR DELETE ON rule_assertions
+  FOR EACH ROW EXECUTE FUNCTION rule_assertions_append_only();
+
+-- unresolved_citations — the retry queue Step 16b sweeps. target_container is
+-- required because CSCRF numbering restarts per annexure ("1" appears 152x).
+CREATE TABLE IF NOT EXISTS unresolved_citations (
+  id                 SERIAL PRIMARY KEY,
+  from_clause_id     INTEGER REFERENCES source_clauses(id) ON DELETE CASCADE,
+  from_obligation_id INTEGER REFERENCES obligations(id) ON DELETE CASCADE,
+  raw_text           TEXT NOT NULL,
+  target_doc         TEXT,
+  target_container   TEXT,
+  target_clause_no   TEXT,
+  edge_type          TEXT,
+  attempts           INTEGER NOT NULL DEFAULT 0,
+  last_attempt_at    TIMESTAMPTZ,
+  state              TEXT NOT NULL DEFAULT 'PENDING',
+  resolved_edge_id   INTEGER REFERENCES edges(id) ON DELETE SET NULL,
+  created_at         TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
 -- ─────────────────────────────────────────────────────────────────────────────
@@ -176,6 +278,12 @@ CREATE TABLE IF NOT EXISTS cache (
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
+-- source_clauses is declared before audiences (it is the first table in the
+-- file), so its FK is added here, once both tables exist.
+ALTER TABLE source_clauses
+  ADD CONSTRAINT fk_source_clauses_audience
+  FOREIGN KEY (audience_id) REFERENCES audiences(id) ON DELETE SET NULL;
+
 -- ─────────────────────────────────────────────────────────────────────────────
 -- INDEXES
 -- ─────────────────────────────────────────────────────────────────────────────
@@ -201,5 +309,24 @@ CREATE INDEX IF NOT EXISTS idx_edges_to_id        ON edges (to_id);
 CREATE INDEX IF NOT EXISTS idx_evaluations_tenant ON evaluations (tenant_id);
 CREATE INDEX IF NOT EXISTS idx_facts_tenant       ON facts (tenant_id);
 CREATE INDEX IF NOT EXISTS idx_source_clauses_doc ON source_clauses (doc_id);
+
+-- applicability layer + filing log + citation queue (Steps 10, 15, 16)
+CREATE INDEX IF NOT EXISTS idx_obligations_audience       ON obligations (audience_id);
+CREATE INDEX IF NOT EXISTS idx_audience_edges_broader     ON audience_edges (broader_id);
+CREATE INDEX IF NOT EXISTS idx_audiences_state            ON audiences (state);
+CREATE INDEX IF NOT EXISTS idx_rule_assertions_replay     ON rule_assertions (effective_from, seq);
+CREATE INDEX IF NOT EXISTS idx_rule_assertions_identity   ON rule_assertions (identity_hash);
+CREATE INDEX IF NOT EXISTS idx_rule_assertions_doc        ON rule_assertions (doc_id);
+CREATE INDEX IF NOT EXISTS idx_rule_assertions_obligation ON rule_assertions (obligation_id);
+CREATE INDEX IF NOT EXISTS idx_unresolved_citations_pending
+  ON unresolved_citations (target_doc) WHERE state = 'PENDING';
+CREATE INDEX IF NOT EXISTS idx_edges_state                ON edges (state);
+CREATE INDEX IF NOT EXISTS idx_obligations_source_clause  ON obligations (source_clause_id);
+CREATE INDEX IF NOT EXISTS idx_unresolved_citations_target
+  ON unresolved_citations (target_clause_no, target_container) WHERE state = 'PENDING';
+-- An edge is a fact about a PAIR; a re-ingest must not duplicate it.
+CREATE UNIQUE INDEX IF NOT EXISTS uq_edges_from_to_type   ON edges (from_id, to_id, type);
+CREATE INDEX IF NOT EXISTS idx_source_clauses_title       ON source_clauses (doc_id) WHERE is_title;
+CREATE INDEX IF NOT EXISTS idx_source_clauses_audience     ON source_clauses (audience_id);
 
 DO $$ BEGIN RAISE NOTICE 'Setu init-db: schema + indexes ready'; END $$;

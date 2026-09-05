@@ -29,6 +29,14 @@ export class SourceClause {
   @Column()
   text: string;
 
+  /** Set on the block carrying the document's subject line (task B2). */
+  @Column({ default: false })
+  isTitle: boolean;
+
+  /** "Master Circular for Stock Brokers" — Pattern C's primary input (D1). */
+  @Column({ nullable: true })
+  titleText: string;
+
   // pgvector column; read/written as raw text by the AI-service paths (not here).
   @Column({ type: 'text', nullable: true, select: false })
   embedding: string;

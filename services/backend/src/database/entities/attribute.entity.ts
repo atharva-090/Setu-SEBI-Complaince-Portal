@@ -12,7 +12,7 @@ export class Attribute {
   @Column()
   canonicalName: string;
 
-  @Column()
+  @Column('text')
   dataType: DataType;
 
   @Column({ nullable: true })

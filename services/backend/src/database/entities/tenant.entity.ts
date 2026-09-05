@@ -9,7 +9,7 @@ export class Tenant {
   @Column()
   name: string;
 
-  @Column()
+  @Column('text')
   category: IntermediaryCategory;
 
   @Column('jsonb', { default: () => "'{}'" })
