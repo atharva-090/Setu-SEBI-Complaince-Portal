@@ -56,6 +56,10 @@ services:
       SEED_ON_BOOT: ${SEED_ON_BOOT:-true}
       AI_SERVICE_URL: http://ai-service:8000
       AI_SERVICE_KEY: ${AI_SERVICE_KEY:-dev-ai-key}
+      # 0 = ingest the whole document. Set it to sample a document against a
+      # real model without paying for a full pass -- the master circular is
+      # 2,183 windows.
+      EXTRACT_MAX_WINDOWS: ${EXTRACT_MAX_WINDOWS:-0}
       SWAGGER_ENABLED: "true"
       CORS_ORIGIN: http://localhost:3001
     ports:

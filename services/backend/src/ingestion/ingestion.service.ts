@@ -3,11 +3,13 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Subject } from 'rxjs';
 import { Repository } from 'typeorm';
 import { IngestionRun } from '../database/entities/ingestion-run.entity';
+import { Edge } from '../database/entities/edge.entity';
 import { Obligation } from '../database/entities/obligation.entity';
 import { SourceClause } from '../database/entities/source-clause.entity';
 import { GovernanceState, ObligationType } from '../database/entities/enums';
 import { AiClientService, AiClause, AiHeadingIn, AiModifier, AiRule } from './ai-client.service';
 import { AssemblyService } from './assembly.service';
+import { DraftedDefinition, FormulaService } from './formula.service';
 import { DraftedModifier } from './assembly.engine';
 import { HeadingClause, headingLevels, nearestResolved, stampTree } from './pattern-a.engine';
 import { AudienceResolverService, conditionsOf } from './audience-resolver.service';
@@ -19,6 +21,20 @@ import { MongoService } from './mongo.service';
 
 const CONFIDENCE_ACTIVE = 0.75; // scope §6: >= 0.75 → ACTIVE, else REVIEW
 const EXTRACT_BATCH = 25; // windows per /extract call (progress granularity)
+
+/**
+ * Hard cap on windows sent to the drafter. 0 = no cap.
+ *
+ * A sampling switch with real money behind it: the master circular is 2,183
+ * windows, and a full pass on the large model is roughly fifteen dollars while a
+ * 150-window sample is under one. The point of a sample is to find out whether
+ * the extraction is worth paying for at all, and there is no way to answer that
+ * without spending SOMETHING -- so the cap makes the amount a decision rather
+ * than an accident.
+ *
+ * Applied AFTER the blocklist filter, so it counts what would actually be sent.
+ */
+const EXTRACT_MAX_WINDOWS = Number(process.env.EXTRACT_MAX_WINDOWS ?? 0);
 const EMBED_BATCH = 128;
 
 export interface StageEvent {
@@ -44,6 +60,7 @@ export class IngestionService {
     @InjectRepository(IngestionRun) private readonly runs: Repository<IngestionRun>,
     @InjectRepository(SourceClause) private readonly clauses: Repository<SourceClause>,
     @InjectRepository(Obligation) private readonly obligations: Repository<Obligation>,
+    @InjectRepository(Edge) private readonly edges: Repository<Edge>,
     private readonly mongo: MongoService,
     private readonly ai: AiClientService,
     private readonly resolver: AttributeResolverService,
@@ -51,6 +68,7 @@ export class IngestionService {
     private readonly filing: FilingService,
     private readonly links: LinksService,
     private readonly assembly: AssemblyService,
+    private readonly formulas: FormulaService,
     private readonly consistency: ConsistencyService,
   ) {}
 
@@ -143,7 +161,24 @@ export class IngestionService {
           window_text: c.window_text as string,
         }));
 
-      await push('extract', { state: 'running', windows: windows.length, done: 0 });
+      const allWindows = windows;
+      const sampling = EXTRACT_MAX_WINDOWS > 0 && allWindows.length > EXTRACT_MAX_WINDOWS;
+      const windowsToSend = sampling ? allWindows.slice(0, EXTRACT_MAX_WINDOWS) : allWindows;
+      if (sampling) {
+        this.log.warn(
+          `SAMPLE RUN: sending ${windowsToSend.length} of ${allWindows.length} windows ` +
+            `(EXTRACT_MAX_WINDOWS=${EXTRACT_MAX_WINDOWS}). This document is NOT fully ingested.`,
+        );
+      }
+
+      await push('extract', {
+        state: 'running',
+        windows: windowsToSend.length,
+        done: 0,
+        // Recorded on the RUN, not only in the log. A partial graph that looks
+        // complete is worse than one that is obviously partial.
+        ...(sampling ? { sampled_from: allWindows.length } : {}),
+      });
       const clauseByIdx = new Map(parsed.clauses.map((c) => [c.idx, c]));
       let drafter = 'unknown';
       let extracted = 0;
@@ -156,9 +191,10 @@ export class IngestionService {
       // whole extraction phase is done. Nothing here waits on anything, which
       // is exactly why extraction can be blindly parallel.
       const draftedModifiers: { idx: number; modifier: AiModifier }[] = [];
+      const draftedDefinitions: DraftedDefinition[] = [];
 
-      for (let i = 0; i < windows.length; i += EXTRACT_BATCH) {
-        const batch = windows.slice(i, i + EXTRACT_BATCH);
+      for (let i = 0; i < windowsToSend.length; i += EXTRACT_BATCH) {
+        const batch = windowsToSend.slice(i, i + EXTRACT_BATCH);
         const res = await this.ai.extract(docId, batch);
         drafter = res.drafter;
         for (const result of res.results) {
@@ -170,9 +206,25 @@ export class IngestionService {
           for (const m of result.modifiers ?? []) {
             draftedModifiers.push({ idx: result.idx, modifier: m });
           }
+          for (const d of result.definitions ?? []) {
+            draftedDefinitions.push({
+              term: d.term,
+              expression: d.expression,
+              meaning: d.meaning,
+              inputs: d.inputs,
+              confidence: d.confidence,
+              clauseNo: clauseByIdx.get(result.idx)?.clause_no ?? null,
+            });
+          }
           const clause = clauseByIdx.get(result.idx);
           for (const rule of result.rules) {
             const row = this.toObligation(docId, rule, clause);
+            // What the model supplied that the clause did not state. The design
+            // is explicit that an inference is not a failure and leaving it
+            // UNDECLARED is -- so it is stored, not dropped on the floor.
+            if (rule.inferred?.length) {
+              row.assemblyNote = { ...(row.assemblyNote ?? {}), inferred: rule.inferred };
+            }
             // Which clause produced it. Step 16 resolves citations into edges by
             // walking clause → rules, and `source_spans` only carries the clause
             // NUMBER — which Decision 66 established is not a key.
@@ -181,10 +233,10 @@ export class IngestionService {
             pending.push({ row, rule, clause });
           }
         }
-        extracted = Math.min(i + EXTRACT_BATCH, windows.length);
+        extracted = Math.min(i + EXTRACT_BATCH, windowsToSend.length);
         await push('extract', {
           state: 'running',
-          windows: windows.length,
+          windows: windowsToSend.length,
           done: extracted,
           rules: rows.length,
           drafter,
@@ -192,7 +244,8 @@ export class IngestionService {
       }
       await push('extract', {
         state: 'done',
-        windows: windows.length,
+        windows: windowsToSend.length,
+        ...(sampling ? { sampled_from: allWindows.length } : {}),
         rules: rows.length,
         declined: declinedIdx.length,
         failed_windows: failed,
@@ -207,6 +260,15 @@ export class IngestionService {
         flagged: recall.flagged.length,
         samples: recall.flagged.slice(0, 25),
       });
+
+      // ── Step 13a: definitions resolve FIRST ─────────────────────────────
+      // Before assembly and before the attribute funnel, and the ordering is the
+      // whole point. A rule using `net_worth` that resolved first would make it
+      // an ordinary attribute, and the intake form would ASK a broker for their
+      // net worth instead of computing it from figures already supplied.
+      await push('definitions', { state: 'running', found: draftedDefinitions.length });
+      const registered = await this.formulas.register(docId, draftedDefinitions);
+      await push('definitions', { state: 'done', ...registered });
 
       // ── Step 12: assembly ───────────────────────────────────────────────
       // The phase boundary. Extraction finished COMPLETELY above; only now is
@@ -223,6 +285,7 @@ export class IngestionService {
           clauseId: p.clause ? idByIdx.get(p.clause.idx) : undefined,
           clauseNo: p.clause?.clause_no ?? null,
           title: p.row.title,
+          expression: p.row.ruleExpression,
         })),
         draftedModifiers.map(({ idx, modifier }): DraftedModifier => ({
           fromClauseNo: clauseByIdx.get(idx)?.clause_no ?? null,
@@ -337,6 +400,17 @@ export class IngestionService {
       );
       const links = await this.links.resolve(docId, { citationsByClauseIdx, idByIdx });
       await push('links', { state: 'done', ...links });
+
+      // ── Step 12's overrides ─────────────────────────────────────────────
+      // `override_value` does not edit the original: everyone keeps the general
+      // rule and the narrower group gets a stricter one that REPLACES it for
+      // them. Persisted here, after filing, because the override points at a
+      // rule that must already have an id.
+      if (assembled.derived.length) {
+        await push('overrides', { state: 'running', derived: assembled.derived.length });
+        const overrides = await this.persistOverrides(docId, pending, assembled, saved);
+        await push('overrides', { state: 'done', ...overrides });
+      }
 
       // ── embeddings (obligations + normative clauses) ─────────────────────
       await push('embed', { state: 'running' });
@@ -965,6 +1039,103 @@ export class IngestionService {
       reused,
       created,
     };
+  }
+
+  /**
+   * Step 12's `override_value` — a second, stricter rule for a narrower group.
+   *
+   * The original is left exactly as it was. That is the whole point: all brokers
+   * still owe the 180-day audit, and QSBs owe a 90-day one that overrides it for
+   * them. Amending the original instead would silently relax or tighten the duty
+   * for everyone.
+   *
+   * An override whose value could not be substituted unambiguously is NOT
+   * created. It is reported, because a rule built by guessing which of several
+   * numbers SEBI meant is worse than a rule a human has to write.
+   */
+  private async persistOverrides(
+    docId: string,
+    pending: { row: Obligation; rule: AiRule; clause?: AiClause }[],
+    assembled: Awaited<ReturnType<AssemblyService['assembleDocument']>>,
+    saved: Obligation[],
+  ): Promise<Record<string, unknown>> {
+    const savedById = new Map(saved.map((o) => [o.id, o]));
+    let created = 0;
+    let skipped = 0;
+    const notes: string[] = [];
+
+    for (const d of assembled.derived) {
+      const origin = pending[Number(d.fromKey)];
+      if (!origin || !d.overriddenExpression) {
+        skipped += 1;
+        if (d.note) notes.push(`${d.source}: ${d.note}`);
+        continue;
+      }
+      // The original must have actually been stored. A restatement or an
+      // ambiguous filing never became a row, and an override of a rule that is
+      // not in the graph would dangle.
+      const target = origin.row.id && savedById.has(origin.row.id) ? origin.row : null;
+      if (!target) {
+        skipped += 1;
+        notes.push(`${d.source}: the rule it overrides was not filed as a new row`);
+        continue;
+      }
+
+      const composed = await this.ai.composeAudience([], d.conditions.join(' && '));
+      let audienceId: number | null = null;
+      if (composed.ok && composed.predicate_hash) {
+        const resolution = await this.audienceResolver.resolve({
+          label: `${target.title.slice(0, 44)} (override)`,
+          predicate: composed.normalised,
+          predicateHash: composed.predicate_hash,
+          conditions: composed.conditions,
+          properties: composed.conditions.map((c) => c.split(' ')[0]),
+          confidence: 0.4,
+          pattern: 'A',
+          createdFrom: docId,
+        });
+        audienceId = resolution.audience.id;
+      }
+
+      const override = this.obligations.create({
+        ...target,
+        id: undefined,
+        title: `${target.title} (as applied by ${d.source})`,
+        ruleExpression: d.overriddenExpression,
+        audienceId: audienceId ?? target.audienceId,
+        // Never live on the strength of a substitution. A human sees the
+        // original, the override and the clause that created it.
+        state: 'REVIEW',
+        confidence: Math.min(target.confidence ?? 0.5, 0.5),
+        identityHash: undefined,
+        fullHash: undefined,
+        hashInputs: {
+          ...(target.hashInputs ?? {}),
+          overrides_rule: target.id,
+          override_from_clause: d.source,
+          override_value: d.overrideValue,
+        },
+      });
+      const stored = await this.obligations.save(override);
+      created += 1;
+
+      await this.edges.save(
+        this.edges.create({
+          fromId: stored.id,
+          toId: target.id,
+          type: 'overrides',
+          state: 'REVIEW',
+          confidence: 0.5,
+          sourceCitation: {
+            kind: 'override_value',
+            from_clause: d.source,
+            value: d.overrideValue,
+          },
+        }),
+      );
+    }
+
+    return { created, skipped, notes: notes.slice(0, 10) };
   }
 
   private async storeClauses(docId: string, aiClauses: AiClause[]): Promise<Map<number, number>> {

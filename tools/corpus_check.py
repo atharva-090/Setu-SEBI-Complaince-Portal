@@ -35,6 +35,30 @@ for _stream in (sys.stdout, sys.stderr):
     except (AttributeError, ValueError):  # not a real tty / already wrapped
         pass
 
+# ─────────────────────────────────────────────────────────────────────────────
+# ⚠️ THE HOST HARNESSES RUN OFFLINE BY DEFAULT.
+#
+# app.config reads .env, so the moment a real LLM_API_KEY is in that file every
+# tool importing this one starts making PAID API calls -- and these harnesses
+# sweep the WHOLE corpus. fidelity_check alone drafts 5,833 windows, which on
+# the large model is tens of dollars for a run whose entire purpose is to
+# measure deterministic checks that do not need a model at all.
+#
+# That is not hypothetical: it happened once, mid-session, and cost real money
+# before it was noticed. So the key is removed from the environment here, before
+# any app module is imported, and a run that genuinely wants the network has to
+# say so.
+#
+#     SETU_ALLOW_LIVE_LLM=1 python tools/<harness>.py
+#
+import os  # noqa: E402
+
+if os.environ.get("SETU_ALLOW_LIVE_LLM") != "1":
+    os.environ["LLM_PROVIDER"] = "mock"
+    os.environ["LLM_API_KEY"] = ""
+    os.environ["OPENAI_API_KEY"] = ""
+# ─────────────────────────────────────────────────────────────────────────────
+
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "services" / "ai-service"))
 
