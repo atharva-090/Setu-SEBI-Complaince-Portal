@@ -11,6 +11,7 @@ import { UsersModule } from './users/users.module';
 import { TenantsModule } from './tenants/tenants.module';
 import { SeedModule } from './seed/seed.module';
 import { HealthModule } from './health/health.module';
+import { IngestionModule } from './ingestion/ingestion.module';
 
 @Module({
   imports: [
@@ -31,6 +32,7 @@ import { HealthModule } from './health/health.module';
     TenantsModule,
     SeedModule,
     HealthModule,
+    IngestionModule,
   ],
   providers: [
     // Order matters: authenticate first, then authorize.

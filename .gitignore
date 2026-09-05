@@ -23,3 +23,19 @@ coverage/
 
 # keep reference projects out of the app build
 reference projects/
+
+# ── media and scratch, deliberately untracked ────────────────────────────────
+# The launch film's renders and raw captures run to ~400MB, and one render is
+# 165MB — past GitHub's 100MB hard limit, so committing them would make the
+# repo unpushable and could not be undone without rewriting history.
+demo-video/renders/
+demo-video/capture/raw/
+demo-video/assets/clips/
+demo-video/assets/audio/
+demo-video/snapshots/
+demo-video/tools/hfd/
+*.vsix
+
+# Working notes, not part of the build or the harnesses.
+Understanding Concepts and functional finalization/
+Setu — Internal Pipeline Deep-Dive v2*.json
