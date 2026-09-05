@@ -8,8 +8,12 @@ import { Broker } from './screens/Broker';
 import { GraphScreen } from './screens/GraphScreen';
 import { Ingest } from './screens/Ingest';
 import { Login } from './screens/Login';
+import { Onboarding } from './screens/Onboarding';
 
-type Screen = 'login' | 'ingest' | 'graph' | 'amendment' | 'broker' | 'audit';
+type Screen = 'login' | 'ingest' | 'graph' | 'amendment' | 'onboarding' | 'broker' | 'audit';
+
+// screens that render their own chrome (no regulator top bar)
+const FULLSCREEN: Screen[] = ['login', 'onboarding'];
 
 const NAV: { id: Screen; label: string }[] = [
   { id: 'ingest', label: 'Ingestion' },
@@ -35,7 +39,7 @@ export default function App() {
 
   return (
     <div className="flex h-full flex-col bg-white">
-      {screen !== 'login' && (
+      {!FULLSCREEN.includes(screen) && (
         <header className="z-40 flex items-center justify-between border-b border-slate-200 bg-white px-6 py-2.5">
           <div className="flex items-center gap-3">
             <button onClick={reset} className="flex items-center gap-2.5">
@@ -93,11 +97,12 @@ export default function App() {
             transition={{ duration: 0.22 }}
             className="h-full overflow-y-auto"
           >
-            {screen === 'login' && <Login onPick={(r) => setScreen(r === 'sebi' ? 'ingest' : 'broker')} />}
+            {screen === 'login' && <Login onPick={(r) => setScreen(r === 'sebi' ? 'ingest' : 'onboarding')} />}
             {screen === 'ingest' && <Ingest onPublish={() => setScreen('graph')} />}
             {screen === 'graph' && <GraphScreen phase={phase} setPhase={setPhase} onViewImpact={() => setScreen('broker')} />}
             {screen === 'amendment' && <Amendment onViewGraph={() => setScreen('graph')} />}
-            {screen === 'broker' && <Broker amended={phase === 'approved'} />}
+            {screen === 'onboarding' && <Onboarding onComplete={() => setScreen('broker')} onExit={() => setScreen('login')} />}
+            {screen === 'broker' && <Broker />}
             {screen === 'audit' && <Audit />}
           </motion.div>
         </AnimatePresence>

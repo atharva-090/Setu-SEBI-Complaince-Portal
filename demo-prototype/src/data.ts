@@ -467,6 +467,154 @@ export interface AffectedEntity {
   note: string;
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// BROKER SIDE — "ongoing compliance management" for a single intermediary
+// The demo intermediary: Sharma Securities (a Qualified Stock Broker).
+// ─────────────────────────────────────────────────────────────────────────────
+
+export const BROKER = {
+  name: 'Sharma Securities Pvt Ltd',
+  short: 'Sharma Securities',
+  type: 'Stock Broker',
+  qsb: true,
+  tagline: 'Qualified Stock Broker · NSE, BSE · 2.14L active clients',
+  officer: 'R. Iyer',
+  scorePrev: 88,          // last month
+  asOf: 'Today, 2 Jul 2026 · 10:24 AM IST',
+  // the regulator-side amendment that just flipped this broker
+  affectedBy: {
+    circular: AMENDMENT.circular,
+    date: AMENDMENT.date,
+    obligationId: 'cyb-audit',
+    summary: 'Cyber-audit cycle cut to 90 days for QSBs (was 182).',
+    from: 'GREEN' as Status,
+    to: 'RED' as Status,
+    deadline: 'Overdue',
+  },
+};
+
+export interface GapMeter { value: number; target: number; unit: string; dir: 'over' | 'under' }
+
+export interface BrokerOb {
+  id: string; title: string; cluster: string; clusterLabel: string;
+  clauseRef: string; rule: string; clauseText: string; highlight: string;
+  status: Status; why: string; current: string; required: string;
+  deadline?: string; daysLeft?: number;
+  action: 'upload' | 'attest' | 'update' | 'schedule' | 'none';
+  evidence: string; evidenceState: 'On file' | 'Pending' | 'Missing' | 'Stale' | 'Review due';
+  amendedBy?: string;
+  meter?: GapMeter;          // numeric shortfall, when quantifiable
+  steps?: string[];          // the fix plan
+  consequence?: string;      // what happens if left unresolved
+}
+
+// per-obligation overrides for this broker (the gaps). Everything else = compliant.
+const BROKER_GAPS: Record<string, Partial<BrokerOb>> = {
+  'cyb-audit': {
+    status: 'RED',
+    why: 'Your last cyber audit was completed 101 days ago. CIR/2026/47 cut the QSB audit cycle to 90 days — you are now in breach.',
+    current: '101 days since last audit', required: '≤ 90 days (QSB)',
+    deadline: 'Overdue', daysLeft: -11, action: 'schedule',
+    evidence: 'CERT-In audit report · 23 Mar 2026', evidenceState: 'Stale',
+    amendedBy: AMENDMENT.circular,
+    meter: { value: 101, target: 90, unit: 'days', dir: 'over' },
+    steps: [
+      'Engage your CERT-In empanelled auditor for the quarterly cycle',
+      'Complete the comprehensive cyber audit',
+      'Upload the signed report and corrective-action plan',
+    ],
+    consequence: 'A missed QSB audit cycle can attract a monetary penalty and an adverse inspection finding.',
+  },
+  'cf-upstreaming': {
+    status: 'AMBER',
+    why: '98.6% of client funds were upstreamed at yesterday\'s EOD — one FDR renewal is still pending.',
+    current: '98.6% upstreamed', required: '100% by end of day',
+    deadline: '3 Jul 2026', daysLeft: 1, action: 'update',
+    evidence: 'Upstreaming EOD report', evidenceState: 'Pending',
+    meter: { value: 98.6, target: 100, unit: '%', dir: 'under' },
+    steps: [
+      'Complete the pending FDR renewal',
+      'Confirm 100% upstreaming at the next end-of-day',
+      'Setu re-verifies automatically from the CC feed',
+    ],
+    consequence: 'Repeated upstreaming shortfalls are reported to the exchange and may trigger a warning.',
+  },
+  'cyb-policy': {
+    status: 'AMBER',
+    why: 'Your board-approved cyber security policy is approaching its mandatory annual review.',
+    current: 'Approved 18 Jan 2026', required: 'Annual board review',
+    deadline: '15 Jul 2026', daysLeft: 13, action: 'attest',
+    evidence: 'Cyber policy v4.1', evidenceState: 'Review due',
+    steps: [
+      'Circulate policy v4.1 to the board for review',
+      'Record the board\'s approval of the annual review',
+      'Attest the completed review here',
+    ],
+    consequence: 'An overdue policy review is a governance lapse noted during SEBI inspection.',
+  },
+  'rm-collateral': {
+    status: 'GREY',
+    why: 'No disaggregated client-collateral report has been filed for the current settlement cycle.',
+    current: 'Not filed this cycle', required: 'File client-wise collateral report',
+    deadline: '5 Jul 2026', daysLeft: 3, action: 'upload',
+    evidence: 'Collateral report', evidenceState: 'Missing',
+    steps: [
+      'Generate the disaggregated client-collateral report',
+      'Upload it for the current settlement cycle',
+      'Setu validates it against clearing-corporation records',
+    ],
+    consequence: 'Missing collateral reports weaken client-asset segregation oversight.',
+  },
+};
+
+// a couple of compliant obligations get real deadlines too (recurring filings)
+const BROKER_DUE: Record<string, { deadline: string; daysLeft: number }> = {
+  'kyc-refresh': { deadline: '11 Jul 2026', daysLeft: 9 },
+  'gov-networth': { deadline: '12 Oct 2026', daysLeft: 102 },
+};
+
+export function brokerObligations(): BrokerOb[] {
+  return OBLIGATIONS.map((o) => {
+    const gap = BROKER_GAPS[o.id];
+    const due = BROKER_DUE[o.id];
+    const amended = gap?.amendedBy;
+    return {
+      id: o.id, title: o.title, cluster: o.cluster,
+      clusterLabel: CLUSTERS[o.cluster].label,
+      clauseRef: amended ? 'CIR/2026/47 · para 2' : o.clauseRef,
+      rule: o.rule,
+      clauseText: amended ? AMENDMENT.clauseText : o.clauseText,
+      highlight: amended ? AMENDMENT.highlight : o.highlight,
+      status: gap?.status ?? o.status.sharma,
+      why: gap?.why ?? o.reason.sharma,
+      current: gap?.current ?? 'Requirement met',
+      required: gap?.required ?? `As per ${o.clauseRef}`,
+      deadline: gap?.deadline ?? due?.deadline,
+      daysLeft: gap?.daysLeft ?? due?.daysLeft,
+      action: gap?.action ?? 'none',
+      evidence: gap?.evidence ?? 'On file',
+      evidenceState: gap?.evidenceState ?? 'On file',
+      amendedBy: gap?.amendedBy,
+      meter: gap?.meter,
+      steps: gap?.steps,
+      consequence: gap?.consequence,
+    };
+  });
+}
+
+export function brokerSummary() {
+  const obs = brokerObligations();
+  const counts = { GREEN: 0, AMBER: 0, RED: 0, GREY: 0 } as Record<Status, number>;
+  for (const o of obs) counts[o.status]++;
+  const score = Math.round((counts.GREEN / obs.length) * 100);
+  return { counts, score, total: obs.length };
+}
+
+export const ACTION_LABEL: Record<BrokerOb['action'], string> = {
+  upload: 'Upload evidence', attest: 'Attest control', update: 'Update data',
+  schedule: 'Schedule audit', none: 'View details',
+};
+
 export const AMENDMENT_STEPS = [
   { id: 'detected', label: 'Detected', sub: 'Circular received' },
   { id: 'analyzed', label: 'Analyzed', sub: 'AI parsing & diffing' },

@@ -1,0 +1,73 @@
+[Script Info]
+; Setu launch film — burned captions
+; Style spec: Calibri · 1.2rem (19.2px @ 1080p, 16px root) · white on black strip @ 78% opacity
+; (a literal 22%-opaque strip washes out over the white UI — alpha byte in BackColour: &H38 = 78% opaque; set to &HC7 for 22%)
+ScriptType: v4.00+
+PlayResX: 1920
+PlayResY: 1080
+ScaledBorderAndShadow: yes
+WrapStyle: 0
+YCbCr Matrix: TV.709
+
+[V4+ Styles]
+Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
+Style: Caption,Calibri,19.2,&H00FFFFFF,&H00FFFFFF,&H38000000,&H38000000,0,0,0,0,100,100,0,0,4,9,0,2,60,60,40,1
+
+[Events]
+Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
+Dialogue: 0,0:00:01.00,0:00:04.30,Caption,,0,0,0,,SEBI issues one circular — and within a week,
+Dialogue: 0,0:00:04.30,0:00:07.40,Caption,,0,0,0,,every broker in the country is reading
+Dialogue: 0,0:00:07.40,0:00:10.80,Caption,,0,0,0,,that same rule a little differently.
+Dialogue: 0,0:00:12.30,0:00:15.10,Caption,,0,0,0,,The fix was never at the broker's end —
+Dialogue: 0,0:00:15.10,0:00:17.50,Caption,,0,0,0,,a rule should be understood once,
+Dialogue: 0,0:00:17.50,0:00:19.90,Caption,,0,0,0,,at the source. So I built it.
+Dialogue: 0,0:00:20.40,0:00:23.20,Caption,,0,0,0,,This is Setu — a compiler for regulation.
+Dialogue: 0,0:00:23.20,0:00:25.90,Caption,,0,0,0,,This is the regulator's console;
+Dialogue: 0,0:00:25.90,0:00:27.95,Caption,,0,0,0,,the way SEBI would actually use it.
+Dialogue: 0,0:00:28.60,0:00:31.40,Caption,,0,0,0,,It starts by ingesting every circular —
+Dialogue: 0,0:00:31.40,0:00:34.30,Caption,,0,0,0,,each one is just a plain PDF.
+Dialogue: 0,0:00:34.30,0:00:37.60,Caption,,0,0,0,,Setu splits it into its clause tree;
+Dialogue: 0,0:00:37.60,0:00:41.10,Caption,,0,0,0,,then, clause by clause, the language becomes
+Dialogue: 0,0:00:41.10,0:00:44.00,Caption,,0,0,0,,rules a computer can actually check.
+Dialogue: 0,0:00:44.00,0:00:47.30,Caption,,0,0,0,,Here — “Periodic KYC updates every 2 years”
+Dialogue: 0,0:00:47.30,0:00:50.60,Caption,,0,0,0,,becomes: last_updated + 730 days < TODAY.
+Dialogue: 0,0:00:50.60,0:00:53.30,Caption,,0,0,0,,Each rule carries a confidence score —
+Dialogue: 0,0:00:53.30,0:00:56.00,Caption,,0,0,0,,15 auto-approved, 2 flagged for review.
+Dialogue: 0,0:00:56.60,0:00:59.60,Caption,,0,0,0,,Every rule takes its place on the graph —
+Dialogue: 0,0:00:59.60,0:01:02.70,Caption,,0,0,0,,one canonical rule-graph, one source of truth.
+Dialogue: 0,0:01:02.70,0:01:05.60,Caption,,0,0,0,,17 obligations, grouped by area — here, KYC.
+Dialogue: 0,0:01:05.60,0:01:07.90,Caption,,0,0,0,,Click any node and you get proof:
+Dialogue: 0,0:01:08.40,0:01:11.50,Caption,,0,0,0,,the original SEBI wording, highlighted,
+Dialogue: 0,0:01:11.50,0:01:14.70,Caption,,0,0,0,,beside the executable rule and its confidence —
+Dialogue: 0,0:01:14.70,0:01:17.90,Caption,,0,0,0,,days since last refresh, under 730.
+Dialogue: 0,0:01:18.60,0:01:21.50,Caption,,0,0,0,,Now a new circular arrives — detected instantly.
+Dialogue: 0,0:01:21.50,0:01:24.60,Caption,,0,0,0,,Setu reads it against the graph
+Dialogue: 0,0:01:24.60,0:01:27.70,Caption,,0,0,0,,and works out what actually changed.
+Dialogue: 0,0:01:27.70,0:01:31.00,Caption,,0,0,0,,Incident reporting: six hours becomes two.
+Dialogue: 0,0:01:31.00,0:01:34.20,Caption,,0,0,0,,Old rule left, proposed rule right.
+Dialogue: 0,0:01:34.20,0:01:37.60,Caption,,0,0,0,,Impact, previewed before anything goes live:
+Dialogue: 0,0:01:37.60,0:01:40.90,Caption,,0,0,0,,128 of 237 entities would be affected.
+Dialogue: 0,0:01:40.90,0:01:44.50,Caption,,0,0,0,,One officer proposes; the approver signs off.
+Dialogue: 0,0:01:44.50,0:01:47.80,Caption,,0,0,0,,Approved — committed and hash-chained, forever auditable.
+Dialogue: 0,0:01:48.40,0:01:51.20,Caption,,0,0,0,,The other door: any intermediary just registers.
+Dialogue: 0,0:01:51.20,0:01:54.30,Caption,,0,0,0,,Sharma Securities — category, profile, exchanges. Done.
+Dialogue: 0,0:01:54.30,0:01:57.80,Caption,,0,0,0,,17 obligations map to them — live.
+Dialogue: 0,0:01:58.50,0:02:01.30,Caption,,0,0,0,,Instantly: their own compliance dashboard —
+Dialogue: 0,0:02:01.30,0:02:04.20,Caption,,0,0,0,,only the rules that apply to them.
+Dialogue: 0,0:02:04.20,0:02:07.20,Caption,,0,0,0,,A fresh SEBI amendment is already here:
+Dialogue: 0,0:02:07.20,0:02:10.30,Caption,,0,0,0,,the QSB cyber-audit cycle — cut to 90 days.
+Dialogue: 0,0:02:10.30,0:02:12.90,Caption,,0,0,0,,101 days on the clock: red for Sharma.
+Dialogue: 0,0:02:13.60,0:02:16.70,Caption,,0,0,0,,Step back — here's what Setu really is.
+Dialogue: 0,0:02:16.70,0:02:20.40,Caption,,0,0,0,,One: self-healing compliance. Change a rule,
+Dialogue: 0,0:02:20.40,0:02:23.60,Caption,,0,0,0,,and every obligation re-evaluates itself.
+Dialogue: 0,0:02:23.60,0:02:27.10,Caption,,0,0,0,,Two: AI drafts. Humans approve. Always.
+Dialogue: 0,0:02:27.10,0:02:30.30,Caption,,0,0,0,,Three: issued once — live everywhere, instantly.
+Dialogue: 0,0:02:30.30,0:02:32.90,Caption,,0,0,0,,Four: every decision, fully traceable.
+Dialogue: 0,0:02:33.60,0:02:36.60,Caption,,0,0,0,,The payoff: SEBI's rule-book, always current,
+Dialogue: 0,0:02:36.60,0:02:39.60,Caption,,0,0,0,,with live oversight of every breach.
+Dialogue: 0,0:02:39.60,0:02:42.70,Caption,,0,0,0,,Firms get a portal that does the work —
+Dialogue: 0,0:02:42.70,0:02:44.90,Caption,,0,0,0,,no spreadsheets, no re-entry.
+Dialogue: 0,0:02:44.90,0:02:47.80,Caption,,0,0,0,,Circular to firm-wide rollout: weeks to minutes.
+Dialogue: 0,0:02:48.60,0:02:51.90,Caption,,0,0,0,,One graph. Issued once. Understood identically.
+Dialogue: 0,0:02:51.90,0:02:54.80,Caption,,0,0,0,,The rule-book stops being a document you read
+Dialogue: 0,0:02:54.80,0:02:58.20,Caption,,0,0,0,,and becomes a system that runs.

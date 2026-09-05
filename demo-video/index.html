@@ -1,0 +1,541 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=1920, height=1080" />
+  <title>Setu — Launch Film</title>
+  <script src="assets/vendor/gsap.min.js"></script>
+  <script src="assets/vendor/icons.js"></script>
+  <style>
+    /* ── type ─────────────────────────────────────────────────────────── */
+    @font-face { font-family: 'Clash Display'; src: url('assets/fonts/ClashDisplay-Semibold.woff2') format('woff2'); font-weight: 600; }
+    @font-face { font-family: 'Switzer'; src: url('assets/fonts/Switzer-Regular.woff2') format('woff2'); font-weight: 400; }
+    @font-face { font-family: 'Switzer'; src: url('assets/fonts/Switzer-Medium.woff2') format('woff2'); font-weight: 500; }
+    @font-face { font-family: 'Switzer'; src: url('assets/fonts/Switzer-Semibold.woff2') format('woff2'); font-weight: 600; }
+    @font-face { font-family: 'Switzer'; src: url('assets/fonts/Switzer-Bold.woff2') format('woff2'); font-weight: 700; }
+    @font-face { font-family: 'JBMono'; src: url('assets/fonts/JetBrainsMono-Regular.woff2') format('woff2'); font-weight: 400; }
+    @font-face { font-family: 'JBMono'; src: url('assets/fonts/JetBrainsMono-Medium.woff2') format('woff2'); font-weight: 500; }
+
+    :root {
+      --ink: #0B1730; --blue: #2E62E9; --blue-soft: #4F7DF7;
+      --grey: #5A6B85; --gold: #F5A623; --paper: #EEF3FF;
+      --card-shadow: 0 22px 55px rgba(40, 70, 140, 0.10), 0 4px 14px rgba(40, 70, 140, 0.06);
+    }
+    * { box-sizing: border-box; margin: 0; }
+    body { background: #000; font-family: 'Switzer', system-ui, sans-serif; }
+    #root { position: relative; width: 1920px; height: 1080px; overflow: hidden; background: #05080F; }
+    .clip { position: absolute; inset: 0; }
+
+    /* ── dark stage behind footage ────────────────────────────────────── */
+    .stage-fill { position: absolute; inset: 0; background: radial-gradient(1400px 900px at 50% 38%, #0B1226 0%, #070C18 55%, #04070E 100%); }
+    .glow { position: absolute; border-radius: 50%; filter: blur(90px); }
+    #glow-a { width: 1150px; height: 900px; left: -320px; top: 500px; background: rgba(79, 125, 247, 0.17); }
+    #glow-b { width: 850px; height: 700px; right: -260px; top: -260px; background: rgba(245, 166, 35, 0.07); }
+    .grain { position: absolute; inset: 0; opacity: 0.05; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='240' height='240'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' seed='7'/%3E%3C/filter%3E%3Crect width='240' height='240' filter='url(%23n)' opacity='0.55'/%3E%3C/svg%3E"); }
+
+    /* ── light graphic scenes (reference system) ──────────────────────── */
+    .scene-bg { position: absolute; inset: 0; }
+    .light-fill { position: absolute; inset: 0; background: radial-gradient(1300px 850px at 22% 8%, #FBFDFF 0%, #F2F6FC 48%, #E7EDF8 100%); }
+    .dots { position: absolute; width: 132px; height: 108px; opacity: 0.9;
+      background-image: radial-gradient(circle, #C7D5EF 2.4px, transparent 2.9px); background-size: 26px 26px; }
+    .dots-tr { right: 84px; top: 66px; }
+    .dots-bl { left: 84px; bottom: 66px; }
+    .overline { font-family: 'JBMono'; font-size: 15px; font-weight: 500; letter-spacing: 0.4em; color: var(--blue); }
+    .sec-bar { width: 58px; height: 3.5px; background: var(--blue); border-radius: 2px; margin: 16px auto 0; }
+    .center-head { position: absolute; left: 0; right: 0; text-align: center; }
+    .headline { font-family: 'Switzer'; font-weight: 700; font-size: 92px; line-height: 1.06; letter-spacing: -0.022em; color: var(--ink); }
+    .headline .soft { color: var(--blue); }
+    [data-icon] { display: grid; place-items: center; }
+    [data-icon] svg { width: 100%; height: 100%; }
+
+    /* ── screen footage ───────────────────────────────────────────────── */
+    video.shot {
+      position: absolute; left: 100px; top: 56px; width: 1720px; height: 968px;
+      object-fit: cover; border-radius: 16px;
+      box-shadow: 0 0 0 1px rgba(255,255,255,0.09), 0 46px 130px rgba(0,0,0,0.6), 0 14px 44px rgba(6,12,28,0.55);
+      transform-origin: 50% 50%;
+    }
+
+    /* ── overlays on footage ──────────────────────────────────────────── */
+    .chapter { position: absolute; display: inline-flex; align-items: center; gap: 10px;
+      padding: 9px 16px; border-radius: 10px; background: rgba(7, 12, 25, 0.68);
+      box-shadow: 0 0 0 1px rgba(255,255,255,0.11) inset; backdrop-filter: blur(10px);
+      font-family: 'JBMono'; font-size: 12.5px; letter-spacing: 0.22em; color: rgba(235, 241, 255, 0.82);
+      white-space: nowrap; width: fit-content; height: fit-content; inset: 88px auto auto 132px; }
+    .chapter b { color: var(--gold); font-weight: 500; }
+    .lower3 { position: absolute; display: inline-flex; align-items: center; gap: 16px;
+      padding: 15px 24px 15px 20px; border-radius: 14px; background: rgba(7, 12, 25, 0.78);
+      box-shadow: 0 0 0 1px rgba(255,255,255,0.12) inset, 0 18px 50px rgba(0,0,0,0.4); backdrop-filter: blur(14px);
+      width: fit-content; height: fit-content; inset: auto auto 84px 132px; }
+    .lower3 .tick { width: 3.5px; height: 26px; border-radius: 2px; background: var(--gold); }
+    .lower3 .txt { font-family: 'Switzer'; font-weight: 600; font-size: 23px; color: var(--paper); letter-spacing: 0.005em; white-space: nowrap; }
+    .lower3 .txt .mono { font-family: 'JBMono'; font-size: 20px; color: #7CA0FF; }
+
+    /* ── G1 hook ──────────────────────────────────────────────────────── */
+    #g1-doc { position: absolute; left: 806px; top: 292px; width: 308px; height: 404px; background: #FFFFFF;
+      border-radius: 16px; padding: 26px 26px 22px; transform: rotate(-1.2deg);
+      border: 1px solid #E7EDF7; box-shadow: 0 30px 70px rgba(40, 70, 140, 0.16), 0 6px 18px rgba(40, 70, 140, 0.07); }
+    #g1-doc .seal { display: flex; align-items: center; gap: 9px; }
+    #g1-doc .seal .dot { width: 30px; height: 30px; border-radius: 50%; background: var(--blue); color: #fff;
+      display: grid; place-items: center; font-family: 'JBMono'; font-size: 7.5px; letter-spacing: 0.06em; }
+    #g1-doc .seal .kind { font-family: 'JBMono'; font-size: 10px; letter-spacing: 0.18em; color: var(--blue); }
+    #g1-doc h4 { font-family: 'Switzer'; font-weight: 700; font-size: 23px; letter-spacing: -0.01em; color: var(--ink); margin-top: 16px; }
+    #g1-doc .ref { font-family: 'JBMono'; font-size: 10.5px; color: #94A3B8; margin-top: 5px; }
+    #g1-doc .rule-line { height: 7px; border-radius: 4px; background: #E9EFF8; margin-top: 12px; }
+    #g1-doc .clause { margin-top: 16px; font-size: 12.5px; line-height: 1.6; color: #33415C; }
+    #g1-doc .clause mark { background: rgba(46, 98, 233, 0.16); color: #1D3A8A; padding: 1px 3px; border-radius: 3px; }
+    #g1-doc .doc-badge { position: absolute; right: 18px; bottom: 16px; width: 34px; height: 34px; border-radius: 9px;
+      background: var(--blue); color: #fff; padding: 7px; }
+    .reading { position: absolute; display: flex; align-items: center; gap: 11px; width: 212px; padding: 12px 14px;
+      background: #FFFFFF; border: 1px solid #E9EFF9; border-radius: 13px;
+      box-shadow: 0 12px 30px rgba(50, 80, 150, 0.10), 0 2px 8px rgba(50, 80, 150, 0.05); }
+    .reading .ric { flex: 0 0 auto; width: 32px; height: 32px; border-radius: 9px; background: #EFF4FE; color: var(--blue); padding: 7px; }
+    .reading .who { font-family: 'JBMono'; font-size: 9px; letter-spacing: 0.18em; color: var(--blue); }
+    .reading .say { font-family: 'Switzer'; font-weight: 600; font-size: 15.5px; color: #16233C; margin-top: 2px; white-space: nowrap; }
+
+    /* ── G2 twist ─────────────────────────────────────────────────────── */
+    #g2-point { position: absolute; left: 950px; top: 470px; width: 20px; height: 20px; border-radius: 50%;
+      background: var(--blue); box-shadow: 0 0 22px 5px rgba(46, 98, 233, 0.55), 0 0 80px 34px rgba(46, 98, 233, 0.22); }
+    #g2-glow { position: absolute; left: 660px; top: 180px; width: 600px; height: 600px; border-radius: 50%;
+      background: radial-gradient(circle, rgba(46, 98, 233, 0.14) 0%, rgba(46, 98, 233, 0) 65%); }
+
+    /* ── G3 pillars ───────────────────────────────────────────────────── */
+    .pillar { position: absolute; width: 712px; height: 288px; border-radius: 22px; background: #FFFFFF;
+      box-shadow: var(--card-shadow); overflow: hidden; }
+    .pillar .bar { position: absolute; left: 0; top: 0; bottom: 0; width: 7px; background: var(--blue);
+      border-radius: 22px 0 0 22px; transform-origin: 50% 0; }
+    .pillar .num { position: absolute; right: 30px; top: 6px; font-family: 'Switzer'; font-weight: 700; font-size: 108px;
+      color: #DDE7F9; letter-spacing: -0.02em; }
+    .pillar .pic { position: absolute; left: 42px; top: 50%; transform: translateY(-50%); width: 96px; height: 96px;
+      border-radius: 50%; background: #EFF4FE; color: var(--blue); padding: 27px; }
+    .pillar .ptxt { position: absolute; left: 176px; top: 50%; transform: translateY(-50%); width: 430px; }
+    .pillar h3 { font-family: 'Switzer'; font-weight: 700; font-size: 37px; line-height: 1.16; letter-spacing: -0.015em; color: var(--ink); }
+    .pillar p { font-size: 19.5px; line-height: 1.5; color: var(--grey); margin-top: 11px; }
+
+    /* ── G4 outcomes ──────────────────────────────────────────────────── */
+    .col-card { position: absolute; top: 262px; width: 776px; height: 332px; border-radius: 22px; padding: 36px 44px;
+      background: #FFFFFF; box-shadow: var(--card-shadow); }
+    .col-card .col-tag { font-family: 'JBMono'; font-size: 13px; letter-spacing: 0.3em; color: var(--blue); }
+    .orow { display: flex; align-items: center; gap: 24px; padding: 24px 0; }
+    .orow + .orow { border-top: 1px solid #E6ECF6; }
+    .orow .oic { position: relative; flex: 0 0 auto; width: 70px; height: 70px; border-radius: 50%; background: #EFF4FE; color: var(--blue); padding: 19px; }
+    .orow .oic .badge { position: absolute; right: -3px; bottom: -3px; width: 24px; height: 24px; border-radius: 50%;
+      background: var(--blue); border: 3px solid #fff; color: #fff; display: grid; place-items: center; padding: 4px; }
+    .orow .otxt { font-size: 21.5px; line-height: 1.42; font-weight: 600; color: #23324D; }
+    .orow .otxt i { color: #64789E; font-style: normal; font-weight: 500; }
+    .stat-band { position: absolute; left: 0; right: 0; top: 684px; text-align: center; }
+    .stat-band .lbl { font-family: 'JBMono'; font-size: 14px; letter-spacing: 0.32em; color: var(--blue); }
+    .stat-band .big { font-family: 'Switzer'; font-weight: 700; font-size: 98px; letter-spacing: -0.025em; color: var(--ink); margin-top: 16px; }
+    .stat-band .big .was { background: linear-gradient(115deg, #93B2FF 10%, #2E62E9 90%); -webkit-background-clip: text; background-clip: text; color: transparent; }
+    .stat-band .big .arrow { color: var(--blue); font-weight: 400; padding: 0 26px; }
+
+    /* ── G5 close ─────────────────────────────────────────────────────── */
+    #g5-halo { position: absolute; left: 660px; top: 150px; width: 600px; height: 600px; border-radius: 50%;
+      background: radial-gradient(circle, rgba(46, 98, 233, 0.10) 0%, rgba(46, 98, 233, 0) 62%); }
+    #g5-logo { position: absolute; left: 760px; top: 330px; width: 400px; }
+    #g5-line { position: absolute; left: 0; right: 0; top: 566px; text-align: center;
+      font-family: 'Switzer'; font-weight: 700; font-size: 66px; letter-spacing: -0.02em; color: var(--ink); }
+    #g5-sub { position: absolute; left: 0; right: 0; top: 664px; text-align: center; font-size: 23px; color: var(--grey); }
+    #g5-foot { position: absolute; left: 0; right: 0; bottom: 56px; text-align: center;
+      font-family: 'JBMono'; font-size: 12.5px; letter-spacing: 0.2em; color: #64789E; }
+
+    .veil-black { position: absolute; inset: 0; background: #000; }
+    .veil-white { position: absolute; inset: 0; background: #EAF0FF; }
+    .veil-light { position: absolute; inset: 0; background: #F5F8FD; }
+  </style>
+</head>
+<body>
+<div id="root" data-composition-id="main" data-start="0" data-width="1920" data-height="1080" data-duration="180" data-fps="60" data-layout-allow-overflow>
+
+  <!-- dark stage (whole film, sits behind footage & under light scenes) -->
+  <div id="stage" class="clip" data-start="0" data-duration="180" data-track-index="0">
+    <div class="stage-fill"></div>
+    <div id="glow-a" class="glow"></div>
+    <div id="glow-b" class="glow"></div>
+    <div class="grain"></div>
+  </div>
+
+  <!-- ═══ G1 · HOOK (0–12) ═══ -->
+  <div id="g1" class="clip" data-start="0" data-duration="12" data-track-index="5" data-layout-allow-overflow>
+    <div class="scene-bg"><div class="light-fill"></div><div class="dots dots-tr"></div><div class="dots dots-bl"></div></div>
+    <svg id="g1-threads" width="1920" height="1080" style="position:absolute;inset:0"></svg>
+    <div id="g1-ghosts" style="position:absolute;inset:0"></div>
+    <div id="g1-doc">
+      <div class="seal"><div class="dot">SEBI</div><div class="kind">CIRCULAR · PDF</div></div>
+      <h4>Master Circular for Stock Brokers</h4>
+      <div class="ref">SEBI/HO/MIRSD/2026/84</div>
+      <div class="rule-line" style="width:92%"></div>
+      <div class="rule-line" style="width:100%"></div>
+      <div class="rule-line" style="width:78%"></div>
+      <div class="clause">“The cyber-security audit shall be conducted <mark>at least half-yearly</mark> by an empanelled auditor…”</div>
+      <div class="rule-line" style="width:96%; margin-top:16px"></div>
+      <div class="rule-line" style="width:84%"></div>
+      <div class="doc-badge" data-icon="file-text"></div>
+    </div>
+    <div id="g1-label" class="overline" style="position:absolute;left:104px;top:712px">THE PROBLEM</div>
+    <div id="g1-line1" class="headline" style="position:absolute;left:100px;top:748px">Same rule.</div>
+    <div id="g1-line2" class="headline" style="position:absolute;left:100px;top:848px"><span class="soft">Hundreds of readings.</span></div>
+    <div id="g1-sub" style="position:absolute;left:104px;top:964px;font-size:20px;color:#64748B">
+      A rule should be understood once, at the source — not re-interpreted everywhere.
+    </div>
+  </div>
+
+  <!-- ═══ G2 · TWIST (12–20) ═══ -->
+  <div id="g2" class="clip" data-start="12" data-duration="8" data-track-index="5">
+    <div class="scene-bg"><div class="light-fill"></div><div class="dots dots-tr"></div><div class="dots dots-bl"></div></div>
+    <div id="g2-glow"></div>
+    <div id="g2-point"></div>
+    <div id="g2-label" class="overline center-head" style="top:352px">THE FIX</div>
+    <div id="g2-line1" class="headline center-head" style="top:400px">Understood once.</div>
+    <div id="g2-line2" class="headline center-head" style="top:506px"><span class="soft">At the source.</span></div>
+    <img id="g2-logo" src="assets/setu-logo-dark.png" style="position:absolute;left:812px;top:420px;width:296px" />
+    <div id="g2-tag" style="position:absolute;left:0;right:0;top:576px;text-align:center;font-size:24px;font-weight:500;color:var(--grey)">
+      A compiler for regulation.
+    </div>
+  </div>
+
+  <!-- ═══ SCREEN FOOTAGE — one fused 60fps master (film 0:20–2:13) ═══ -->
+  <video id="v-all" class="shot" src="assets/clips/acts-60.mp4" data-start="20" data-duration="113" data-track-index="20" muted playsinline></video>
+
+  <!-- ═══ chapter chips (track 6) ═══ -->
+  <div id="ch1" class="clip chapter" data-start="20.6"  data-duration="5.4" data-track-index="6"><b>01</b>&nbsp; THE REGULATOR'S CONSOLE</div>
+  <div id="ch2" class="clip chapter" data-start="28.6"  data-duration="5.6" data-track-index="6"><b>02</b>&nbsp; INGESTION — CIRCULAR → RULES</div>
+  <div id="ch3" class="clip chapter" data-start="56.6"  data-duration="5.2" data-track-index="6"><b>03</b>&nbsp; THE RULE-GRAPH</div>
+  <div id="ch4" class="clip chapter" data-start="68.4"  data-duration="5.2" data-track-index="6"><b>04</b>&nbsp; CLAUSE INSPECTOR</div>
+  <div id="ch5" class="clip chapter" data-start="78.6"  data-duration="5.6" data-track-index="6"><b>05</b>&nbsp; AMENDMENT — MAKER · CHECKER</div>
+  <div id="ch6" class="clip chapter" data-start="108.5" data-duration="5"   data-track-index="6"><b>06</b>&nbsp; INTERMEDIARY ONBOARDING</div>
+  <div id="ch7" class="clip chapter" data-start="121.6" data-duration="5.4" data-track-index="6"><b>07</b>&nbsp; LIVE COMPLIANCE — SHARMA SECURITIES</div>
+
+  <!-- ═══ lower thirds (track 7) ═══ -->
+  <div id="lt1" class="clip lower3" data-start="42"    data-duration="5"   data-track-index="7">
+    <div class="tick"></div><div class="txt">A legal PDF&nbsp;→&nbsp;<span class="mono">executable&nbsp;rules</span></div>
+  </div>
+  <div id="lt2" class="clip lower3" data-start="58"    data-duration="4.5" data-track-index="7">
+    <div class="tick"></div><div class="txt">One canonical rule-graph. One source of truth.</div>
+  </div>
+  <div id="lt3" class="clip lower3" data-start="74.2"  data-duration="3.7" data-track-index="7">
+    <div class="tick"></div><div class="txt">Original clause&nbsp;↔&nbsp;executable rule&nbsp;↔&nbsp;confidence</div>
+  </div>
+  <div id="lt4" class="clip lower3" data-start="103.6" data-duration="4"   data-track-index="7">
+    <div class="tick"></div><div class="txt">Propose. Approve. Audited.</div>
+  </div>
+  <div id="lt5" class="clip lower3" data-start="124.5" data-duration="5"   data-track-index="7">
+    <div class="tick"></div><div class="txt">Issued once. Seen instantly.</div>
+  </div>
+
+  <!-- ═══ G3 · PILLARS (133–153) ═══ -->
+  <div id="g3" class="clip" data-start="133" data-duration="20" data-track-index="5">
+    <div class="scene-bg" id="g3-bg"><div class="light-fill"></div><div class="dots dots-tr"></div><div class="dots dots-bl"></div></div>
+    <div id="g3-label" class="center-head" style="top:150px"><span class="overline">WHAT SETU IS</span><div class="sec-bar"></div></div>
+    <div id="p1" class="pillar" style="left:222px;top:258px">
+      <div class="bar"></div><div class="num">01</div>
+      <div class="pic" data-icon="shield-check"></div>
+      <div class="ptxt"><h3>Self-healing compliance</h3>
+      <p>Change a rule — every affected obligation re-evaluates itself.</p></div>
+    </div>
+    <div id="p2" class="pillar" style="left:986px;top:258px">
+      <div class="bar"></div><div class="num">02</div>
+      <div class="pic" data-icon="wand-sparkles"></div>
+      <div class="ptxt"><h3>AI drafts. Humans approve.</h3>
+      <p>Every rule is machine-drafted and human-signed. Nothing goes live alone.</p></div>
+    </div>
+    <div id="p3" class="pillar" style="left:222px;top:578px">
+      <div class="bar"></div><div class="num">03</div>
+      <div class="pic" data-icon="globe"></div>
+      <div class="ptxt"><h3>Issued once. Live everywhere.</h3>
+      <p>Every firm's dashboard updates in real time, the moment SEBI commits.</p></div>
+    </div>
+    <div id="p4" class="pillar" style="left:986px;top:578px">
+      <div class="bar"></div><div class="num">04</div>
+      <div class="pic" data-icon="file-check-2"></div>
+      <div class="ptxt"><h3>Fully traceable</h3>
+      <p>Every status ties back to a clause, a version, and a calculation.</p></div>
+    </div>
+  </div>
+
+  <!-- ═══ G4 · OUTCOMES (153–168) ═══ -->
+  <div id="g4" class="clip" data-start="153" data-duration="15" data-track-index="5">
+    <div class="scene-bg"><div class="light-fill"></div><div class="dots dots-tr"></div><div class="dots dots-bl"></div></div>
+    <div id="g4-label" class="center-head" style="top:132px"><span class="overline">THE PAYOFF</span><div class="sec-bar"></div></div>
+    <div id="g4-l" class="col-card" style="left:150px">
+      <div class="col-tag">FOR SEBI</div>
+      <div class="orow"><div class="oic" data-icon="book-open"><div class="badge"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></div></div>
+        <div class="otxt">The rule-book as one always-current, machine-readable system.</div></div>
+      <div class="orow"><div class="oic" data-icon="eye"><div class="badge"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></div></div>
+        <div class="otxt">Live oversight — who is breaching which rule, across the market.</div></div>
+    </div>
+    <div id="g4-r" class="col-card" style="left:994px">
+      <div class="col-tag">FOR EVERY FIRM</div>
+      <div class="orow"><div class="oic" data-icon="building-2"><div class="badge"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></div></div>
+        <div class="otxt">A portal that does the work — no spreadsheets, no re-entry.</div></div>
+      <div class="orow"><div class="oic" data-icon="file-text"><div class="badge"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></div></div>
+        <div class="otxt">Manual compliance effort cut by more than half <i>(est.)</i></div></div>
+    </div>
+    <div id="g4-stat" class="stat-band">
+      <div class="lbl">NEW CIRCULAR → FIRM-WIDE IMPLEMENTATION</div>
+      <div class="big"><span class="was">Weeks</span><span class="arrow">→</span><span>Minutes</span></div>
+    </div>
+  </div>
+
+  <!-- ═══ G5 · CLOSE (168–180) ═══ -->
+  <div id="g5" class="clip" data-start="168" data-duration="12" data-track-index="5">
+    <div class="scene-bg"><div class="light-fill"></div><div class="dots dots-tr"></div><div class="dots dots-bl"></div></div>
+    <div id="g5-halo"></div>
+    <img id="g5-logo" src="assets/setu-logo-close.png" />
+    <div id="g5-line">One graph. Issued once.</div>
+    <div id="g5-sub">Understood identically by everyone.</div>
+    <div id="g5-foot">SETU · A REGULATORY COMPILER — GFF HACKATHON 2026</div>
+  </div>
+
+  <!-- ═══ veils (track 9) ═══ -->
+  <div id="veil-open" class="clip veil-light" data-start="0"      data-duration="1"    data-track-index="9"></div>
+  <div id="blip-a1"   class="clip veil-white" data-start="27.9"   data-duration="0.3"  data-track-index="9"></div>
+  <div id="blip-a2"   class="clip veil-white" data-start="35.42"  data-duration="0.3"  data-track-index="9"></div>
+  <div id="blip-a3"   class="clip veil-white" data-start="55.9"   data-duration="0.3"  data-track-index="9"></div>
+  <div id="blip-a4"   class="clip veil-white" data-start="77.92"  data-duration="0.3"  data-track-index="9"></div>
+  <div id="blip-1"    class="clip veil-white" data-start="107.92" data-duration="0.3"  data-track-index="9"></div>
+  <div id="blip-2"    class="clip veil-white" data-start="111.52" data-duration="0.3"  data-track-index="9"></div>
+  <div id="blip-3"    class="clip veil-white" data-start="115.92" data-duration="0.3"  data-track-index="9"></div>
+  <div id="blip-a5"   class="clip veil-white" data-start="117.92" data-duration="0.3"  data-track-index="9"></div>
+  <div id="veil-end"  class="clip veil-black" data-start="178.2"  data-duration="1.8"  data-track-index="9"></div>
+
+  <!-- ═══ audio ═══ -->
+  <audio id="bgm" src="assets/audio/bgm.mp3" data-start="0" data-duration="180" data-track-index="40" data-volume="1"></audio>
+</div>
+
+<script>
+  // ────────────────────────────────────────────────────────────────────────
+  // icons: populate every [data-icon] with its lucide markup
+  // ────────────────────────────────────────────────────────────────────────
+  document.querySelectorAll('[data-icon]').forEach(el => {
+    const shapes = window.__ICONS[el.getAttribute('data-icon')] || '';
+    el.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">' + shapes + '</svg>' + el.innerHTML;
+  });
+
+  // ────────────────────────────────────────────────────────────────────────
+  // G1: reading cards + connector threads (deterministic)
+  // ────────────────────────────────────────────────────────────────────────
+  const READINGS = [
+    'every 6 months', 'twice a year', '≤ 182 days', '≈ 180 days?',
+    'each half-year', '2× annually', 'semi-annual', 'by Sept 30?',
+    'within 183 days', 'Q2 & Q4 only', 'audit = VAPT?', 'prev. FY basis?',
+  ];
+  const RICONS = ['calendar', 'refresh-cw', 'clock-3', 'calendar-days', 'chart-pie', 'shield-check'];
+  const G1C = { x: 960, y: 498 };
+  const GHOST_POS = READINGS.map((_, i) => {
+    const a = (-90 + i * 30) * Math.PI / 180;
+    return { x: G1C.x + 655 * Math.cos(a), y: 450 + 292 * Math.sin(a) };
+  });
+  const ghostsEl = document.getElementById('g1-ghosts');
+  const threadsEl = document.getElementById('g1-threads');
+  const SVGNS = 'http://www.w3.org/2000/svg';
+  GHOST_POS.forEach((p, i) => {
+    const d = document.createElement('div');
+    d.className = 'reading'; d.id = 'ghost-' + i;
+    d.style.left = (p.x - 106) + 'px'; d.style.top = (p.y - 30) + 'px';
+    d.style.transform = 'rotate(' + ((i % 3) - 1) * 1.4 + 'deg)';
+    d.innerHTML = '<div class="ric" data-icon-late="' + RICONS[i % RICONS.length] + '"></div>'
+      + '<div><div class="who">READING ' + String(i + 1).padStart(2, '0') + '</div><div class="say">' + READINGS[i] + '</div></div>';
+    ghostsEl.appendChild(d);
+    const midx = (G1C.x + p.x) / 2 + (i % 2 ? 24 : -24);
+    const midy = (G1C.y + p.y) / 2 + (i % 2 ? -16 : 16);
+    const path = document.createElementNS(SVGNS, 'path');
+    path.setAttribute('d', `M${G1C.x},${G1C.y} Q${midx},${midy} ${p.x},${p.y}`);
+    path.setAttribute('fill', 'none');
+    path.setAttribute('stroke', '#B9CDEE');
+    path.setAttribute('stroke-width', '1.7');
+    path.setAttribute('stroke-dasharray', '900');
+    path.setAttribute('stroke-dashoffset', '900');
+    path.id = 'thread-' + i;
+    threadsEl.appendChild(path);
+    const dot = document.createElementNS(SVGNS, 'circle');
+    dot.setAttribute('cx', p.x); dot.setAttribute('cy', p.y); dot.setAttribute('r', '3.2');
+    dot.setAttribute('fill', '#9FB8E4'); dot.setAttribute('opacity', '0');
+    dot.id = 'tdot-' + i;
+    threadsEl.appendChild(dot);
+  });
+  document.querySelectorAll('[data-icon-late]').forEach(el => {
+    const shapes = window.__ICONS[el.getAttribute('data-icon-late')] || '';
+    el.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:100%;height:100%;display:block">' + shapes + '</svg>';
+  });
+
+  // ────────────────────────────────────────────────────────────────────────
+  // camera helper — zoom toward a point in footage display-space.
+  // For s >= 1.12 translation is clamped so footage always covers the frame.
+  // ────────────────────────────────────────────────────────────────────────
+  const cam = (s, px, py) => {
+    let x = -(px - 860) * (s - 1), y = -(py - 484) * (s - 1);
+    if (s >= 1.12) {
+      const mx = 860 * s - 960, my = 484 * s - 540;
+      x = Math.max(-mx, Math.min(mx, x));
+      y = Math.max(-my, Math.min(my, y));
+    }
+    return { scale: s, x, y };
+  };
+  const CAM0 = { scale: 1, x: 0, y: 0 };
+
+  // ────────────────────────────────────────────────────────────────────────
+  // master timeline — all times absolute film seconds
+  // ────────────────────────────────────────────────────────────────────────
+  window.__timelines = window.__timelines || {};
+  const tl = gsap.timeline({ paused: true });
+
+  /* ── stage life ── */
+  tl.fromTo('#veil-open', { opacity: 1 }, { opacity: 0, duration: 0.8, ease: 'power2.out' }, 0.1);
+  tl.fromTo('#glow-a', { x: 0, y: 0 }, { x: 70, y: -50, duration: 90, ease: 'sine.inOut', repeat: 1, yoyo: true }, 0);
+  tl.fromTo('#glow-b', { x: 0, y: 0 }, { x: -60, y: 40, duration: 90, ease: 'sine.inOut', repeat: 1, yoyo: true }, 0);
+
+  /* ── G1 hook (0–12) ── */
+  tl.fromTo('#g1-doc', { opacity: 0, y: 30, scale: 0.96 }, { opacity: 1, y: 0, scale: 1, duration: 1.0, ease: 'expo.out' }, 0.4);
+  for (let i = 0; i < 12; i++) {
+    tl.fromTo('#thread-' + i, { strokeDashoffset: 900 }, { strokeDashoffset: 0, duration: 2.1, ease: 'power2.inOut' }, 1.9 + i * 0.13);
+    tl.fromTo('#tdot-' + i, { opacity: 0 }, { opacity: 1, duration: 0.4, ease: 'power2.out' }, 2.55 + i * 0.15);
+    tl.fromTo('#ghost-' + i, { opacity: 0, scale: 0.82 }, { opacity: 1, scale: 1, duration: 0.7, ease: 'back.out(1.5)' }, 2.6 + i * 0.15);
+  }
+  tl.fromTo('#g1-ghosts', { scale: 1 }, { scale: 1.05, duration: 7.4, ease: 'none' }, 3.2);
+  tl.fromTo('#g1-label', { opacity: 0, y: 16 }, { opacity: 1, y: 0, duration: 0.6, ease: 'power3.out' }, 5.4);
+  tl.fromTo('#g1-line1', { opacity: 0, y: 46 }, { opacity: 1, y: 0, duration: 0.9, ease: 'expo.out' }, 5.75);
+  tl.fromTo('#g1-line2', { opacity: 0, y: 46 }, { opacity: 1, y: 0, duration: 0.9, ease: 'expo.out' }, 6.5);
+  tl.fromTo('#g1-sub', { opacity: 0, y: 20 }, { opacity: 1, y: 0, duration: 0.7, ease: 'power3.out' }, 7.35);
+  // collapse into the source
+  for (let i = 0; i < 12; i++) {
+    tl.to('#thread-' + i, { strokeDashoffset: 900, duration: 0.9, ease: 'power3.in' }, 10.55 + i * 0.03);
+    tl.to('#tdot-' + i, { opacity: 0, duration: 0.4, ease: 'power2.in' }, 10.6 + i * 0.03);
+  }
+  tl.to('#g1-ghosts', { scale: 0.62, opacity: 0, duration: 1.25, ease: 'power3.in', overwrite: 'auto' }, 10.62);
+  tl.to('#g1-doc', { scale: 0.7, opacity: 0, y: -12, duration: 1.1, ease: 'power3.in' }, 10.8);
+  tl.to('#g1-label, #g1-line1, #g1-line2, #g1-sub', { opacity: 0, duration: 0.7, ease: 'power2.in' }, 11.0);
+
+  /* ── G2 twist (12–20) ── */
+  tl.fromTo('#g2-point', { opacity: 0, scale: 0.2 }, { opacity: 1, scale: 2.4, duration: 0.5, ease: 'back.out(2.2)' }, 12.05);
+  tl.to('#g2-point', { scale: 1, duration: 0.7, ease: 'power2.inOut' }, 12.6);
+  tl.fromTo('#g2-glow', { opacity: 0 }, { opacity: 1, duration: 1.2, ease: 'power2.out' }, 12.1);
+  tl.fromTo('#g2-label', { opacity: 0, y: 14 }, { opacity: 1, y: 0, duration: 0.55, ease: 'power3.out' }, 12.75);
+  tl.fromTo('#g2-line1', { opacity: 0, y: 40 }, { opacity: 1, y: 0, duration: 0.85, ease: 'expo.out' }, 13.05);
+  tl.fromTo('#g2-line2', { opacity: 0, y: 40 }, { opacity: 1, y: 0, duration: 0.85, ease: 'expo.out' }, 13.7);
+  tl.to('#g2-label, #g2-line1, #g2-line2', { opacity: 0, y: -24, duration: 0.6, ease: 'power2.in' }, 15.85);
+  tl.to('#g2-point', { opacity: 0, scale: 0.3, duration: 0.5, ease: 'power2.in' }, 16.05);
+  tl.fromTo('#g2-logo', { opacity: 0, scale: 0.9 }, { opacity: 1, scale: 1, duration: 1.0, ease: 'expo.out' }, 16.4);
+  tl.fromTo('#g2-tag', { opacity: 0, y: 18 }, { opacity: 1, y: 0, duration: 0.8, ease: 'power3.out' }, 17.3);
+  tl.to('#g2', { opacity: 0, duration: 0.5, ease: 'power2.in' }, 19.45);
+
+  /* ── one continuous camera over the fused acts master (20–133) ──
+     cues: s1Click 27.70 · publish 55.43 · kyc 61.50 · node 73.29 · submit 99.83
+           approve 105.57 · steps 112.14/113.64/115.14 · complete 116.47
+           goDash 118.70 · dashboard 121.19 · change 129.52                    */
+  tl.fromTo('#v-all', { opacity: 0, scale: 1.045, x: 0, y: 0 }, { opacity: 1, scale: 1.02, duration: 0.7, ease: 'power2.out' }, 20);
+  tl.to('#v-all', { scale: 1.0, x: 0, y: 0, duration: 4.5, ease: 'sine.inOut' }, 20.7);
+  tl.to('#v-all', { ...cam(1.07, 673, 710), duration: 1.5, ease: 'power2.inOut' }, 25.9);
+  tl.to('#v-all', { ...cam(1.16, 673, 730), duration: 0.4, ease: 'power3.out' }, 27.62);   // s1 click
+  tl.to('#v-all', { ...cam(1.16, 620, 360), duration: 1.5, ease: 'power2.inOut' }, 28.15); // gesture up to pipeline
+  tl.to('#v-all', { ...cam(1.16, 1280, 360), duration: 3.6, ease: 'power1.inOut' }, 29.8); // dolly across stages
+  tl.to('#v-all', { ...cam(1.02, 900, 480), duration: 1.7, ease: 'power2.inOut' }, 33.6);  // through 35.5 cut
+  tl.to('#v-all', { ...cam(1.2, 640, 300), duration: 1.6, ease: 'power2.inOut' }, 37.7);   // rules push
+  tl.to('#v-all', { ...cam(1.2, 640, 460), duration: 2.2, ease: 'sine.inOut' }, 44.0);     // track rows
+  tl.to('#v-all', { ...cam(1.16, 1450, 470), duration: 1.7, ease: 'power2.inOut' }, 46.6); // confidence col
+  tl.to('#v-all', { ...cam(1.03, 880, 500), duration: 1.4, ease: 'power2.inOut' }, 48.5);  // through 50 cut
+  tl.to('#v-all', { scale: 1.03, x: -6, y: -5, duration: 4.2, ease: 'sine.inOut' }, 50.4);
+  tl.to('#v-all', { scale: 1.07, x: -10, y: -9, duration: 0.45, ease: 'power3.out' }, 55.35); // publish click
+  tl.to('#v-all', { ...CAM0, duration: 1.6, ease: 'power2.inOut' }, 56.35);                // graph reveal pull-back
+  tl.to('#v-all', { ...cam(1.05, 860, 420), duration: 3.0, ease: 'sine.inOut' }, 58.2);
+  tl.to('#v-all', { ...cam(1.16, 860, 200), duration: 0.55, ease: 'power3.out' }, 61.45);  // kyc click
+  tl.to('#v-all', { ...cam(1.05, 860, 430), duration: 2.4, ease: 'power2.inOut' }, 64.0);  // bloom settle
+  tl.to('#v-all', { ...cam(1.06, 1000, 500), duration: 4.0, ease: 'sine.inOut' }, 67.5);   // drift toward node
+  tl.to('#v-all', { ...cam(1.18, 1320, 600), duration: 0.55, ease: 'power3.out' }, 73.25); // node click
+  tl.to('#v-all', { ...cam(1.16, 1480, 480), duration: 1.6, ease: 'power2.inOut' }, 74.6); // inspector pan
+  tl.to('#v-all', { ...cam(1.06, 1150, 484), duration: 1.5, ease: 'power2.inOut' }, 76.4); // through 78 cut
+  tl.to('#v-all', { ...cam(1.16, 780, 340), duration: 1.8, ease: 'power2.inOut' }, 78.35); // circular card
+  tl.to('#v-all', { ...cam(1.16, 1130, 700), duration: 2.1, ease: 'power2.inOut' }, 81.6); // AI reasoning
+  tl.to('#v-all', { ...cam(1.04, 900, 520), duration: 1.5, ease: 'power2.inOut' }, 84.0);  // through 85 cut
+  tl.to('#v-all', { ...cam(1.18, 620, 640), duration: 1.4, ease: 'power2.inOut' }, 86.0);  // old pane
+  tl.to('#v-all', { ...cam(1.18, 1180, 640), duration: 1.6, ease: 'power2.inOut' }, 89.4); // new pane
+  tl.to('#v-all', { ...cam(1.05, 950, 560), duration: 1.6, ease: 'power2.inOut' }, 93.0);  // through 95 cut
+  tl.to('#v-all', { ...cam(1.16, 1260, 660), duration: 1.5, ease: 'power2.inOut' }, 95.4); // chart
+  tl.to('#v-all', { ...cam(1.04, 800, 600), duration: 1.2, ease: 'power2.inOut' }, 97.4);  // through 98.5 cut
+  tl.to('#v-all', { ...cam(1.16, 620, 720), duration: 0.5, ease: 'power3.out' }, 99.78);   // submit click
+  tl.to('#v-all', { ...cam(1.16, 560, 760), duration: 1.6, ease: 'power2.inOut' }, 101.6); // pending / approver
+  tl.to('#v-all', { ...cam(1.19, 500, 780), duration: 0.5, ease: 'power3.out' }, 105.52);  // approve click
+  tl.to('#v-all', { ...cam(1.16, 1290, 700), duration: 1.5, ease: 'power2.inOut' }, 106.2);// audit sealed
+  tl.to('#v-all', { ...cam(1.06, 1000, 600), duration: 1.2, ease: 'power2.inOut' }, 107.72); // through 108 cut
+  tl.to('#v-all', { ...cam(1.16, 1430, 430), duration: 1.7, ease: 'power2.inOut' }, 109.15); // obligations rail
+  tl.to('#v-all', { ...cam(1.02, 900, 500), duration: 1.3, ease: 'power2.inOut' }, 111.05); // through 111.6 cut
+  tl.to('#v-all', { ...cam(1.06, 860, 520), duration: 3.6, ease: 'sine.inOut' }, 112.6);   // step clicks
+  tl.to('#v-all', { ...cam(1.1, 760, 490), duration: 1.4, ease: 'power2.inOut' }, 116.3);  // done card
+  tl.to('#v-all', { ...cam(1.04, 720, 600), duration: 1.2, ease: 'power2.inOut' }, 117.8); // through 118 cut
+  tl.to('#v-all', { scale: 1.04, x: 6, y: -6, duration: 2.2, ease: 'sine.inOut' }, 119.05); // goDash + mount
+  tl.to('#v-all', { ...CAM0, duration: 1.2, ease: 'power2.inOut' }, 121.35);               // dashboard settle
+  tl.to('#v-all', { ...cam(1.16, 400, 430), duration: 1.9, ease: 'power2.inOut' }, 122.7); // health ring
+  tl.to('#v-all', { ...cam(1.16, 1250, 420), duration: 1.7, ease: 'power2.inOut' }, 125.8);// change card
+  tl.to('#v-all', { ...cam(1.17, 1300, 450), duration: 0.5, ease: 'power3.out' }, 129.47); // change click
+  tl.to('#v-all', { ...cam(1.16, 1500, 500), duration: 1.4, ease: 'power2.inOut' }, 130.4);// drawer
+  tl.to('#v-all', { ...cam(1.06, 1200, 500), duration: 0.5, ease: 'power2.inOut' }, 131.9);
+  tl.to('#v-all', { opacity: 0, scale: 1.03, duration: 0.55, ease: 'power2.in' }, 132.45);
+  tl.set('#v-all', { opacity: 0 }, 133.0);
+
+  /* ── act-boundary blips (mask clip-state resets) ── */
+  const BLIPS = [
+    ['#blip-a1', 27.92], ['#blip-a2', 35.44], ['#blip-a3', 55.92], ['#blip-a4', 77.94],
+    ['#blip-1', 107.94], ['#blip-2', 111.54], ['#blip-3', 115.94], ['#blip-a5', 117.94],
+  ];
+  for (const [id, t] of BLIPS) {
+    tl.fromTo(id, { opacity: 0 }, { opacity: 0.14, duration: 0.1, ease: 'power1.in' }, t);
+    tl.to(id, { opacity: 0, duration: 0.16, ease: 'power1.out', overwrite: 'auto' }, t + 0.1);
+  }
+
+  /* ── chapter chips + lower thirds ── */
+  for (const id of ['#ch1', '#ch2', '#ch3', '#ch4', '#ch5', '#ch6', '#ch7']) {
+    const el = document.querySelector(id);
+    const start = parseFloat(el.getAttribute('data-start'));
+    const dur = parseFloat(el.getAttribute('data-duration'));
+    tl.fromTo(id, { opacity: 0, x: -18 }, { opacity: 1, x: 0, duration: 0.55, ease: 'power3.out' }, start + 0.05);
+    tl.to(id, { opacity: 0, x: 10, duration: 0.4, ease: 'power2.in', overwrite: 'auto' }, start + dur - 0.45);
+  }
+  for (const id of ['#lt1', '#lt2', '#lt3', '#lt4', '#lt5']) {
+    const el = document.querySelector(id);
+    const start = parseFloat(el.getAttribute('data-start'));
+    const dur = parseFloat(el.getAttribute('data-duration'));
+    tl.fromTo(id, { opacity: 0, y: 22 }, { opacity: 1, y: 0, duration: 0.6, ease: 'power3.out' }, start + 0.05);
+    tl.to(id, { opacity: 0, y: 12, duration: 0.45, ease: 'power2.in', overwrite: 'auto' }, start + dur - 0.5);
+  }
+
+  /* ── G3 pillars (133–153) ── */
+  tl.fromTo('#g3-bg', { opacity: 0 }, { opacity: 1, duration: 0.55, ease: 'power2.out' }, 133.0);
+  tl.fromTo('#g3-label', { opacity: 0, y: 16 }, { opacity: 1, y: 0, duration: 0.7, ease: 'power3.out' }, 133.5);
+  const PT = [134.3, 138.8, 143.3, 147.8];
+  ['#p1', '#p2', '#p3', '#p4'].forEach((id, i) => {
+    tl.fromTo(id, { opacity: 0, y: 40 }, { opacity: 1, y: 0, duration: 0.9, ease: 'expo.out' }, PT[i]);
+    tl.fromTo(id + ' .bar', { scaleY: 0 }, { scaleY: 1, duration: 0.7, ease: 'power3.out' }, PT[i] + 0.25);
+    tl.fromTo(id + ' .num', { opacity: 0 }, { opacity: 1, duration: 0.8, ease: 'power2.out' }, PT[i] + 0.3);
+    tl.fromTo(id + ' .pic', { scale: 0.7, opacity: 0 }, { scale: 1, opacity: 1, duration: 0.7, ease: 'back.out(1.6)' }, PT[i] + 0.18);
+  });
+  tl.to('#g3-label, #p1, #p2, #p3, #p4', { opacity: 0, duration: 0.6, ease: 'power2.in' }, 152.2);
+
+  /* ── G4 outcomes (153–168) ── */
+  tl.fromTo('#g4-label', { opacity: 0, y: 16 }, { opacity: 1, y: 0, duration: 0.7, ease: 'power3.out' }, 153.4);
+  tl.fromTo('#g4-l', { opacity: 0, x: -46 }, { opacity: 1, x: 0, duration: 0.95, ease: 'expo.out' }, 153.9);
+  tl.fromTo('#g4-r', { opacity: 0, x: 46 }, { opacity: 1, x: 0, duration: 0.95, ease: 'expo.out' }, 154.5);
+  tl.fromTo('#g4-stat', { opacity: 0, y: 34 }, { opacity: 1, y: 0, duration: 0.95, ease: 'expo.out' }, 159.6);
+  tl.fromTo('#g4-stat .big', { scale: 0.94 }, { scale: 1, duration: 1.1, ease: 'expo.out' }, 159.7);
+  tl.to('#g4-label, #g4-l, #g4-r, #g4-stat', { opacity: 0, duration: 0.6, ease: 'power2.in' }, 167.2);
+
+  /* ── G5 close (168–180) ── */
+  tl.fromTo('#g5-halo', { opacity: 0, scale: 0.8 }, { opacity: 1, scale: 1, duration: 1.6, ease: 'power2.out' }, 168.3);
+  tl.fromTo('#g5-logo', { opacity: 0, scale: 0.92 }, { opacity: 1, scale: 1, duration: 1.1, ease: 'expo.out' }, 168.6);
+  tl.fromTo('#g5-line', { opacity: 0, y: 30 }, { opacity: 1, y: 0, duration: 0.9, ease: 'expo.out' }, 170.1);
+  tl.fromTo('#g5-sub', { opacity: 0, y: 18 }, { opacity: 1, y: 0, duration: 0.8, ease: 'power3.out' }, 171.4);
+  tl.fromTo('#g5-foot', { opacity: 0 }, { opacity: 1, duration: 0.9, ease: 'power2.out' }, 173.2);
+  tl.fromTo('#g5-halo', { scale: 1 }, { scale: 1.12, duration: 4.5, ease: 'sine.inOut', repeat: 1, yoyo: true, overwrite: 'auto' }, 170.5);
+  tl.fromTo('#veil-end', { opacity: 0 }, { opacity: 1, duration: 1.3, ease: 'power2.inOut' }, 178.3);
+
+  /* ── music automation ── */
+  tl.fromTo('#bgm', { volume: 0.62 }, { volume: 0.62, duration: 0.1 }, 0);
+  tl.to('#bgm', { volume: 0.4, duration: 1.4, ease: 'power1.inOut' }, 19.2);
+  tl.to('#bgm', { volume: 0.48, duration: 1.2, ease: 'power1.inOut' }, 105.1);
+  tl.to('#bgm', { volume: 0.4, duration: 1.0, ease: 'power1.inOut' }, 108.5);
+  tl.to('#bgm', { volume: 0.6, duration: 1.6, ease: 'power1.inOut' }, 131.6);
+  tl.to('#bgm', { volume: 0.66, duration: 1.4, ease: 'power1.inOut' }, 167.4);
+
+  window.__timelines['main'] = tl;
+</script>
+</body>
+</html>
