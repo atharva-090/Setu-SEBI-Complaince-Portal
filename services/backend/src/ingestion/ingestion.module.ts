@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { Attribute } from '../database/entities/attribute.entity';
+import { Formula } from '../database/entities/formula.entity';
 import { Edge } from '../database/entities/edge.entity';
 import { UnresolvedCitation } from '../database/entities/unresolved-citation.entity';
 import { Audience } from '../database/entities/audience.entity';
@@ -13,6 +14,8 @@ import { SourceClause } from '../database/entities/source-clause.entity';
 import { AiClientService } from './ai-client.service';
 import { AttributeResolverService } from './attribute-resolver.service';
 import { AssemblyService } from './assembly.service';
+import { FormulaService } from './formula.service';
+import { RegisterConsolidationService } from './register-consolidation.service';
 import { AudienceResolverService } from './audience-resolver.service';
 import { ConsistencyService } from './consistency.service';
 import { FilingService } from './filing.service';
@@ -27,6 +30,7 @@ import { MongoService } from './mongo.service';
       SourceClause,
       Obligation,
       Attribute,
+      Formula,
       Audience,
       AudienceEdge,
       ObligationVersion,
@@ -44,6 +48,8 @@ import { MongoService } from './mongo.service';
     FilingService,
     LinksService,
     AssemblyService,
+    FormulaService,
+    RegisterConsolidationService,
     ConsistencyService,
   ],
   exports: [
@@ -54,6 +60,8 @@ import { MongoService } from './mongo.service';
     FilingService,
     LinksService,
     AssemblyService,
+    FormulaService,
+    RegisterConsolidationService,
     ConsistencyService,
   ],
 })

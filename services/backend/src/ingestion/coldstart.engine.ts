@@ -61,6 +61,30 @@ export interface Cluster {
 }
 
 /** Cosine distance between two unit-length vectors. */
+/**
+ * Two names that differ only by a trailing index are NOT the same fact.
+ *
+ * `allocation_to_client_1`, `allocation_to_client_2` and `allocation_to_client_4`
+ * sit almost on top of each other in embedding space -- the wording is identical
+ * apart from a digit -- and merging them collapses three distinct allocations
+ * into one. Meaning similarity cannot see the difference; the names can.
+ *
+ * Deliberately narrow: it only fires when the names are identical after removing
+ * a trailing number AND the numbers actually differ. `audit_report` and
+ * `audit_report_2` still merge, because there the digit is a duplicate-naming
+ * artefact rather than an index.
+ */
+export function differByIndexOnly(a: string, b: string): boolean {
+  const split = (n: string) => {
+    const m = /^(.*?)[_-]?(\d+)$/.exec(n);
+    return m ? { stem: m[1], index: Number(m[2]) } : null;
+  };
+  const left = split(a);
+  const right = split(b);
+  if (!left || !right) return false;
+  return left.stem === right.stem && left.index !== right.index;
+}
+
 export function cosineDistance(a: number[], b: number[]): number {
   let dot = 0;
   let na = 0;
@@ -92,15 +116,28 @@ export const BORDERLINE_MAX = 0.30;
 export function clarity(name: string): number {
   const parts = name.split(/[_\s]+/).filter(Boolean);
   if (parts.length === 0) return 0;
-  const words = parts.length;
-  const abbreviated = parts.filter(
-    (p) => p.length <= 3 || !/[aeiou]/i.test(p),
-  ).length;
-  const avgLength = parts.reduce((n, p) => n + p.length, 0) / words;
-  // Words help, abbreviations hurt, and very long names are not better than
-  // clear ones — the average word length is capped rather than rewarded.
-  return words * 2 - abbreviated * 3 + Math.min(avgLength, 8) / 4;
+  const abbreviated = parts.filter((p) => p.length <= 3 || !/[aeiou]/i.test(p)).length;
+  const noisy = parts.filter((p) => NOISE_TOKEN.test(p)).length;
+  const avgLength = parts.reduce((n, p) => n + p.length, 0) / parts.length;
+
+  // ⚠️ Words help only up to a point, and this is the correction that matters.
+  //
+  // Rewarding words linearly made a LONGER name always win, so
+  // "internal_audit_report_submission_date_september" beat
+  // "internal_audit_report_submission_date" -- the extraneous month made the
+  // name worse and the score better. Found by running consolidation over a real
+  // register, not by any test.
+  //
+  // Four words is enough to name a data-point; past that each one earns less,
+  // and a name carrying a month, a year or a bare index is actively penalised
+  // because those belong to one INSTANCE of the fact, not to the fact.
+  const words = Math.min(parts.length, 4) * 2 + Math.max(0, parts.length - 4) * 0.25;
+  return words - abbreviated * 3 - noisy * 4 + Math.min(avgLength, 8) / 4;
 }
+
+/** A token that names one occurrence rather than the fact itself. */
+const NOISE_TOKEN =
+  /^(?:\d+|january|february|march|april|may|june|july|august|september|october|november|december|q[1-4]|fy\d*|20\d\d)$/i;
 
 /** Recency as a 0..1 weight: this year is 1, ten years ago is ~0. */
 export function recency(effectiveFrom: string, now = new Date()): number {
@@ -188,6 +225,8 @@ export function cluster(
       // data-point, however close their wording.
       if (!typesCompatible(m.dataType, seed.mention.dataType)) continue;
       if (!unitsCompatible(m.unit, seed.mention.unit)) continue;
+      // An index is a distinction the embedding cannot carry.
+      if (differByIndexOnly(m.token, seed.mention.token)) continue;
 
       let distance: number;
       if (m.embedding?.length && seed.mention.embedding?.length) {
