@@ -1,0 +1,1086 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Step 10 — Audience Resolution</title>
+<style>
+  :root {
+    --ground: #F7F6F3;
+    --panel: #FFFFFF;
+    --panel-2: #F1EFEA;
+    --ink: #1A1D1A;
+    --ink-soft: #454A44;
+    --muted: #6B7069;
+    --rule: #D9D7D0;
+    --rule-strong: #B9B7AE;
+    --accent: #0F5257;
+    --accent-ink: #0B3C40;
+    --accent-soft: #E2EDEC;
+    --brass: #8A6A20;
+    --brass-soft: #F3EBDB;
+    --stop: #A03A2B;
+    --stop-soft: #F6E5E1;
+
+    --mono: ui-monospace, "SF Mono", "Cascadia Mono", Menlo, Consolas, "Liberation Mono", monospace;
+    --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --ground: #131614;
+      --panel: #1A1E1C;
+      --panel-2: #212623;
+      --ink: #E9EAE5;
+      --ink-soft: #BCC0B9;
+      --muted: #878C85;
+      --rule: #2C312E;
+      --rule-strong: #3D443F;
+      --accent: #58AEB2;
+      --accent-ink: #8FCBCE;
+      --accent-soft: #16302F;
+      --brass: #C9A24A;
+      --brass-soft: #2B2517;
+      --stop: #D98070;
+      --stop-soft: #331F1B;
+    }
+  }
+
+  :root[data-theme="dark"] {
+    --ground: #131614;
+    --panel: #1A1E1C;
+    --panel-2: #212623;
+    --ink: #E9EAE5;
+    --ink-soft: #BCC0B9;
+    --muted: #878C85;
+    --rule: #2C312E;
+    --rule-strong: #3D443F;
+    --accent: #58AEB2;
+    --accent-ink: #8FCBCE;
+    --accent-soft: #16302F;
+    --brass: #C9A24A;
+    --brass-soft: #2B2517;
+    --stop: #D98070;
+    --stop-soft: #331F1B;
+  }
+
+  :root[data-theme="light"] {
+    --ground: #F7F6F3;
+    --panel: #FFFFFF;
+    --panel-2: #F1EFEA;
+    --ink: #1A1D1A;
+    --ink-soft: #454A44;
+    --muted: #6B7069;
+    --rule: #D9D7D0;
+    --rule-strong: #B9B7AE;
+    --accent: #0F5257;
+    --accent-ink: #0B3C40;
+    --accent-soft: #E2EDEC;
+    --brass: #8A6A20;
+    --brass-soft: #F3EBDB;
+    --stop: #A03A2B;
+    --stop-soft: #F6E5E1;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    background: var(--ground);
+    color: var(--ink);
+    font-family: var(--sans);
+    font-size: 16px;
+    line-height: 1.62;
+    margin: 0;
+    padding: 0 1.25rem 6rem;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .wrap { max-width: 60rem; margin: 0 auto; }
+
+  /* ---- masthead ---- */
+  header.mast {
+    padding: 4rem 0 2.5rem;
+    border-bottom: 2px solid var(--ink);
+    margin-bottom: 3rem;
+  }
+  .eyebrow {
+    font-family: var(--mono);
+    font-size: 0.7rem;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin: 0 0 1rem;
+    display: flex;
+    gap: 0.9rem;
+    align-items: center;
+    flex-wrap: wrap;
+  }
+  .eyebrow span.sep { color: var(--rule-strong); }
+  h1 {
+    font-family: var(--mono);
+    font-size: clamp(1.7rem, 4.4vw, 2.7rem);
+    font-weight: 600;
+    letter-spacing: -0.015em;
+    line-height: 1.12;
+    margin: 0 0 1.1rem;
+    text-wrap: balance;
+  }
+  .standfirst {
+    font-size: 1.1rem;
+    color: var(--ink-soft);
+    max-width: 44rem;
+    margin: 0;
+  }
+
+  /* ---- sections ---- */
+  section { margin: 0 0 3.75rem; }
+  h2 {
+    font-family: var(--mono);
+    font-size: 0.78rem;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin: 0 0 1.4rem;
+    padding-bottom: 0.6rem;
+    border-bottom: 1px solid var(--rule);
+    display: flex;
+    align-items: baseline;
+    gap: 0.85rem;
+  }
+  h2 .num {
+    color: var(--muted);
+    font-weight: 400;
+  }
+  h3 {
+    font-family: var(--sans);
+    font-size: 1.13rem;
+    font-weight: 650;
+    letter-spacing: -0.01em;
+    margin: 2.2rem 0 0.7rem;
+    text-wrap: balance;
+  }
+  p { margin: 0 0 1.05rem; max-width: 65ch; }
+  p.lead { font-size: 1.05rem; color: var(--ink-soft); }
+  ul { max-width: 65ch; padding-left: 1.15rem; margin: 0 0 1.05rem; }
+  li { margin-bottom: 0.45rem; }
+  strong { font-weight: 650; }
+  code {
+    font-family: var(--mono);
+    font-size: 0.86em;
+    background: var(--panel-2);
+    padding: 0.1em 0.36em;
+    border-radius: 2px;
+    border: 1px solid var(--rule);
+  }
+
+  /* ---- callout ---- */
+  .callout {
+    background: var(--accent-soft);
+    border-left: 3px solid var(--accent);
+    padding: 1.2rem 1.4rem;
+    margin: 1.6rem 0;
+  }
+  .callout p { margin: 0; max-width: none; }
+  .callout p + p { margin-top: 0.7rem; }
+  .callout .tag {
+    font-family: var(--mono);
+    font-size: 0.68rem;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--accent);
+    display: block;
+    margin-bottom: 0.5rem;
+  }
+
+  /* ---- schematic panels ---- */
+  .panel {
+    border: 1px solid var(--rule-strong);
+    background: var(--panel);
+    margin: 1.7rem 0;
+  }
+  .panel-head {
+    font-family: var(--mono);
+    font-size: 0.68rem;
+    letter-spacing: 0.13em;
+    text-transform: uppercase;
+    color: var(--muted);
+    padding: 0.6rem 1rem;
+    border-bottom: 1px solid var(--rule);
+    background: var(--panel-2);
+  }
+  .panel-body { padding: 1.2rem 1rem; overflow-x: auto; }
+  pre {
+    font-family: var(--mono);
+    font-size: 0.8rem;
+    line-height: 1.65;
+    margin: 0;
+    white-space: pre;
+    color: var(--ink-soft);
+  }
+  pre b { color: var(--ink); font-weight: 600; }
+  pre .hl { color: var(--accent); font-weight: 600; }
+  pre .warn { color: var(--brass); font-weight: 600; }
+  pre .bad { color: var(--stop); font-weight: 600; }
+
+  /* ---- ladder ---- */
+  .scenarios {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin: 0 0 1.4rem;
+  }
+  .scenarios button {
+    font-family: var(--mono);
+    font-size: 0.74rem;
+    letter-spacing: 0.03em;
+    padding: 0.6rem 0.85rem;
+    border: 1px solid var(--rule-strong);
+    background: var(--panel);
+    color: var(--ink-soft);
+    cursor: pointer;
+    border-radius: 0;
+    transition: background 0.15s, color 0.15s, border-color 0.15s;
+    text-align: left;
+  }
+  .scenarios button:hover { border-color: var(--accent); color: var(--ink); }
+  .scenarios button[aria-pressed="true"] {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: var(--ground);
+  }
+  .scenarios button:focus-visible {
+    outline: 2px solid var(--brass);
+    outline-offset: 2px;
+  }
+
+  .heading-in {
+    font-family: var(--mono);
+    font-size: 0.86rem;
+    padding: 0.9rem 1rem;
+    background: var(--panel-2);
+    border: 1px solid var(--rule);
+    border-left: 3px solid var(--brass);
+    margin-bottom: 0.2rem;
+  }
+  .heading-in .lbl {
+    display: block;
+    font-size: 0.64rem;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 0.35rem;
+  }
+
+  .ladder { border: 1px solid var(--rule-strong); border-top: none; }
+  .rung {
+    display: grid;
+    grid-template-columns: 4.2rem 1fr;
+    border-top: 1px solid var(--rule);
+    background: var(--panel);
+    transition: opacity 0.2s, background 0.2s;
+  }
+  .rung.skipped { opacity: 0.34; }
+  .rung.resolved { background: var(--accent-soft); }
+  .rung.resolved.gate { background: var(--brass-soft); }
+  .rung-n {
+    font-family: var(--mono);
+    font-size: 0.68rem;
+    letter-spacing: 0.1em;
+    color: var(--muted);
+    padding: 0.9rem 0.6rem;
+    border-right: 1px solid var(--rule);
+    text-align: center;
+  }
+  .rung.resolved .rung-n { color: var(--accent); font-weight: 700; }
+  .rung.resolved.gate .rung-n { color: var(--brass); }
+  .rung-body { padding: 0.9rem 1rem; }
+  .rung-title {
+    font-family: var(--mono);
+    font-size: 0.76rem;
+    letter-spacing: 0.04em;
+    font-weight: 600;
+    margin-bottom: 0.3rem;
+  }
+  .rung-what {
+    font-size: 0.87rem;
+    color: var(--ink-soft);
+    margin: 0;
+    max-width: none;
+  }
+  .rung-out {
+    font-family: var(--mono);
+    font-size: 0.76rem;
+    margin-top: 0.55rem;
+    padding-top: 0.55rem;
+    border-top: 1px dashed var(--rule-strong);
+    color: var(--ink);
+  }
+  .rung-out .mark { color: var(--accent); font-weight: 700; }
+  .rung.gate .rung-out .mark { color: var(--brass); }
+  .verdict {
+    font-family: var(--mono);
+    font-size: 0.8rem;
+    padding: 1rem;
+    border: 1px solid var(--rule-strong);
+    border-top: none;
+    background: var(--panel-2);
+  }
+  .verdict .k {
+    font-size: 0.64rem;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--muted);
+    display: block;
+    margin-bottom: 0.4rem;
+  }
+
+  /* ---- lattice ---- */
+  .lattice-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 15rem) minmax(0, 1fr);
+    gap: 1.6rem;
+    align-items: start;
+  }
+  @media (max-width: 44rem) {
+    .lattice-grid { grid-template-columns: 1fr; }
+  }
+  fieldset {
+    border: 1px solid var(--rule-strong);
+    padding: 1rem;
+    margin: 0;
+    background: var(--panel);
+  }
+  legend {
+    font-family: var(--mono);
+    font-size: 0.66rem;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--muted);
+    padding: 0 0.4rem;
+  }
+  .prop {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    font-family: var(--mono);
+    font-size: 0.78rem;
+    padding: 0.35rem 0;
+    cursor: pointer;
+  }
+  .prop input { accent-color: var(--accent); width: 1rem; height: 1rem; cursor: pointer; }
+  .prop input:focus-visible { outline: 2px solid var(--brass); outline-offset: 2px; }
+  select {
+    font-family: var(--mono);
+    font-size: 0.78rem;
+    padding: 0.35rem 0.4rem;
+    background: var(--panel-2);
+    color: var(--ink);
+    border: 1px solid var(--rule-strong);
+    width: 100%;
+    margin-top: 0.3rem;
+  }
+
+  .nodes { display: flex; flex-direction: column; gap: 0.45rem; }
+  .node {
+    border: 1px solid var(--rule);
+    background: var(--panel);
+    padding: 0.7rem 0.9rem;
+    font-family: var(--mono);
+    font-size: 0.78rem;
+    display: flex;
+    justify-content: space-between;
+    gap: 1rem;
+    align-items: center;
+    transition: border-color 0.18s, background 0.18s, opacity 0.18s;
+    opacity: 0.42;
+  }
+  .node .test { color: var(--muted); font-size: 0.7rem; }
+  .node.on {
+    opacity: 1;
+    border-color: var(--accent);
+    background: var(--accent-soft);
+  }
+  .node.on .test { color: var(--accent-ink); }
+  .node .badge {
+    font-size: 0.62rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--muted);
+    white-space: nowrap;
+  }
+  .node.on .badge { color: var(--accent); font-weight: 700; }
+  .node[data-depth="1"] { margin-left: 1.4rem; }
+  .node[data-depth="2"] { margin-left: 2.8rem; }
+  .tally {
+    font-family: var(--mono);
+    font-size: 0.8rem;
+    margin-top: 0.9rem;
+    padding: 0.75rem 0.9rem;
+    background: var(--panel-2);
+    border: 1px solid var(--rule-strong);
+  }
+  .tally b { color: var(--accent); }
+
+  /* ---- table ---- */
+  .tw { overflow-x: auto; margin: 1.5rem 0; }
+  table { border-collapse: collapse; width: 100%; font-size: 0.88rem; min-width: 34rem; }
+  th, td {
+    text-align: left;
+    padding: 0.65rem 0.8rem;
+    border-bottom: 1px solid var(--rule);
+    vertical-align: top;
+  }
+  th {
+    font-family: var(--mono);
+    font-size: 0.66rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--muted);
+    border-bottom: 1px solid var(--rule-strong);
+    white-space: nowrap;
+  }
+  td code { font-size: 0.8em; }
+
+  footer.end {
+    border-top: 2px solid var(--ink);
+    padding-top: 1.4rem;
+    margin-top: 4rem;
+    font-family: var(--mono);
+    font-size: 0.72rem;
+    color: var(--muted);
+    letter-spacing: 0.04em;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    * { transition: none !important; animation: none !important; }
+  }
+</style>
+
+<div class="wrap">
+
+<header class="mast">
+  <p class="eyebrow">
+    <span>Setu · Ingestion Pipeline</span>
+    <span class="sep">/</span>
+    <span>Step 10</span>
+  </p>
+  <h1>Audience Resolution</h1>
+  <p class="standfirst">
+    Turning a section heading into a test a computer can run — and matching it against
+    every audience the system already knows, without ever guessing.
+  </p>
+</header>
+
+<section>
+  <h2><span class="num">01</span> First: this is not the next link in the chain</h2>
+
+  <p class="lead">
+    This is almost certainly why Step 10 felt disconnected. The numbering implies it
+    follows Step 9. It doesn't.
+  </p>
+
+  <p>
+    Steps 1 → 9 are a single chain: each one eats what the last one produced.
+    Step 10 <strong>branches off the clause tree</strong> instead, runs beside window
+    building, and doesn't rejoin until filing.
+  </p>
+
+  <div class="panel">
+    <div class="panel-head">Where step 10 actually sits</div>
+    <div class="panel-body"><pre>  Step 6/7          Step 8            Step 9           Step 11        Step 12
+  CLAUSE TREE  ──▶  JUNK FILTER  ──▶  WINDOWS    ──▶   DRAFTING   ──┐
+       │                                                            │
+       │                                                            ▼
+       └──────▶  <b>STEP 10</b>  ─────────────────────────────────▶  <b>FILING</b>
+                <b>AUDIENCE</b>                                     the two
+                <b>RESOLUTION</b>                                    streams
+                                                                   finally meet</pre></div>
+  </div>
+
+  <p>
+    Two consequences worth holding on to:
+  </p>
+
+  <ul>
+    <li><strong>It reads the clause tree, not the windows.</strong> It only looks at
+      <em>headings</em> — the containers Step 8 marked as junk. It never touches clause
+      bodies.</li>
+    <li><strong>Drafting does not wait for it.</strong> A window carries its audience as
+      <em>wording</em> inside the heading trail, which is all the AI needs. The formally
+      resolved audience is only needed later, when a rule is filed.</li>
+  </ul>
+
+  <div class="callout">
+    <span class="tag">Why it exists at all</span>
+    <p>
+      Without this step, a rule extracted from the QSB chapter and a rule extracted from
+      the non-QSB chapter are indistinguishable once stored. Six months later SEBI amends
+      the QSB one — and the system cannot tell which of the two to change. It either
+      rewrites the wrong rule, or decides one supersedes the other and deletes an
+      obligation that thousands of firms still owe.
+    </p>
+  </div>
+</section>
+
+<section>
+  <h2><span class="num">02</span> What arrives</h2>
+
+  <div class="panel">
+    <div class="panel-head">Inputs</div>
+    <div class="panel-body"><pre>FROM STEP 6/7 ─── the clause tree
+                  we use only the container nodes — the headings
+
+                    9    Obligations of Qualified Stock Brokers   ◀ candidate
+                    9.5    Cyber security and cyber resilience    ◀ candidate?
+                    9.5.3    Audit requirements                   ◀ candidate?
+                    9.5.3.1    A cyber security audit shall...    ◀ not a heading
+
+
+FROM THE DATABASE ─ the Audience Register       (empty on the very first document)
+                    the firm-property vocabulary (see below — only a slice is sent)</pre></div>
+  </div>
+
+  <h3>The vocabulary is a dropdown, not a text box</h3>
+
+  <p>
+    The obvious objection to translating headings into tests: <em>what stops the AI
+    writing</em> <code>is_qsb = yes</code> <em>in one circular and</em>
+    <code>qsb = applicable</code> <em>in another?</em>
+  </p>
+
+  <p>
+    Mostly this does. The AI is handed a list of firm properties and told to pick from
+    it rather than invent names. But it is <strong>never handed the whole list</strong> —
+    that would work at 30 properties and fail badly at 300.
+  </p>
+
+  <div class="panel">
+    <div class="panel-head">What actually goes into the prompt</div>
+    <div class="panel-body"><pre><b>STABLE CORE</b>  ~25 properties · identical every call · <span class="hl">prompt-cached</span>
+
+    category              stock_broker | investment_adviser | ...
+    is_qsb                yes / no
+    holds_client_funds    yes / no
+    is_clearing_member    yes / no
+    active_clients        a number
+    ...
+
+<b>RETRIEVED TAIL</b>  ~10 properties · chosen for THIS heading
+
+    heading: "Obligations of brokers offering algorithmic trading"
+                          ↓ retrieve by meaning
+    offers_algo_trading         yes / no
+    uses_colocation             yes / no
+    has_approved_algo_strategy  yes / no
+
+<b>PERMISSION</b>  "if none of these fit, propose a new property"
+
+                          ────────────
+                          <span class="hl">~35 options, not 300</span></pre></div>
+  </div>
+
+  <p>
+    Cost is the smaller reason. Sending everything would be expensive, but a stable
+    prefix is prompt-cached and the price largely disappears. <strong>Accuracy is the
+    real reason</strong> — a model choosing from 300 options performs measurably worse
+    than one choosing from 35, because entries buried mid-list get less attention. A
+    bloated vocabulary makes the translation worse, not merely pricier.
+  </p>
+
+  <h3>How big does this list actually get?</h3>
+
+  <div class="tw">
+    <table>
+      <thead>
+        <tr><th></th><th>What it is</th><th>Rough size</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong>Data-points</strong></td>
+          <td>facts a firm reports — audit dates, net worth, client counts</td>
+          <td>thousands</td>
+        </tr>
+        <tr>
+          <td><strong>Firm properties</strong></td>
+          <td>characteristics that decide <em>who a rule applies to</em></td>
+          <td>tens</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <p>
+    Firm properties exist only to slice the population — registration type, a handful of
+    activity flags, a few size thresholds. Regulation doesn't actually divide firms
+    hundreds of ways, so this set stays small while the data-point register grows into
+    the thousands.
+  </p>
+
+  <div class="callout">
+    <span class="tag">The governance rule that keeps it small</span>
+    <p>
+      A property earns its place <strong>only when some rule's audience depends on
+      it</strong>. "Net worth ≥ ₹5 crore" is a rule <em>about</em> a data-point — that
+      doesn't make net worth a firm property. It becomes one only if a circular says
+      <em>"brokers with net worth above X shall…"</em>, using it to define who is being
+      addressed.
+    </p>
+    <p>
+      If the vocabulary starts heading for the hundreds, that's the signal data-points are
+      leaking in where they don't belong.
+    </p>
+  </div>
+
+  <h3>What if retrieval misses?</h3>
+
+  <p>
+    Then the AI proposes a new property that duplicates one already in the register. That
+    fails safely, because a proposal doesn't go straight in — it runs through
+    <strong>the same ladder as everything else</strong>: normalise, exact match,
+    implication, similarity, judge. Worst case a human sees
+    <em>"proposed: offers_algorithmic_trading — looks like existing:
+    offers_algo_trading"</em> and rejects it.
+  </p>
+
+  <p>
+    A retrieval miss costs one rejected proposal, not a corrupted vocabulary.
+  </p>
+</section>
+
+<section>
+  <h2><span class="num">03</span> The idea the whole step rests on</h2>
+
+  <p>
+    Everywhere else in this pipeline, matching is done by <em>meaning similarity</em>.
+    Two data-points are the same thing if their descriptions land close together in
+    vector space. That's the right tool there, because "date of last audit" is a human
+    notion with fuzzy edges.
+  </p>
+
+  <p>
+    An audience is different. <strong>An audience is a set of firms.</strong> Sets can be
+    compared exactly. Using a similarity score would be discarding certainty we could
+    have had for free.
+  </p>
+
+  <div class="callout">
+    <span class="tag">The rule</span>
+    <p>
+      <strong>The AI translates the heading into a test. From that point on, the computer
+      decides — not the AI.</strong>
+    </p>
+  </div>
+
+  <div class="panel">
+    <div class="panel-head">Names vs tests — the same two headings, two approaches</div>
+    <div class="panel-body"><pre>MATCHING BY NAME                            MATCHING BY TEST
+
+"Obligations of Qualified Stock Brokers"    → <b>category=stock_broker AND is_qsb=true</b>
+"QSB Obligations"                           → <b>category=stock_broker AND is_qsb=true</b>
+
+     ↓                                           ↓
+different words, different numbering,       <span class="hl">character-for-character identical</span>
+different depth in the document
+     ↓                                           ↓
+<span class="bad">guess whether they're the same</span>              <span class="hl">know they're the same</span></pre></div>
+  </div>
+
+  <p>
+    It's the same trick as matching "senior citizens" to "old people". Comparing the
+    <em>words</em> is guesswork. But if both are written as <code>age &gt; 60</code>, you
+    just look at them and know.
+  </p>
+</section>
+
+<section>
+  <h2><span class="num">04</span> Walk one heading through</h2>
+
+  <p>
+    Every heading takes the same ladder, and stops at the first rung that resolves it.
+    Pick a scenario and watch where it stops — the machinery is identical each time, only
+    the outcome differs.
+  </p>
+
+  <div class="scenarios" role="group" aria-label="Choose a scenario">
+    <button type="button" data-s="0" aria-pressed="true">A · very first circular</button>
+    <button type="button" data-s="1" aria-pressed="false">B · a later circular, reworded</button>
+    <button type="button" data-s="2" aria-pressed="false">C · a narrower group</button>
+    <button type="button" data-s="3" aria-pressed="false">D · just a topic</button>
+    <button type="button" data-s="4" aria-pressed="false">E · new vocabulary needed</button>
+  </div>
+
+  <div class="heading-in">
+    <span class="lbl">Heading arriving from the clause tree</span>
+    <span id="sc-heading"></span>
+  </div>
+
+  <div class="ladder" id="ladder"></div>
+  <div class="verdict">
+    <span class="k">Result</span>
+    <span id="sc-verdict"></span>
+  </div>
+
+  <p style="margin-top:1.6rem">
+    Notice that in four of five scenarios <strong>no human is involved and often no AI
+    either</strong>. The gate only closes when something genuinely new appears — which,
+    across all of SEBI's regulated universe, happens a few dozen times in total.
+  </p>
+</section>
+
+<section>
+  <h2><span class="num">05</span> Why a new audience needs a human</h2>
+
+  <p>
+    This is the one deliberate interruption in the entire pipeline, and it buys a hard
+    guarantee.
+  </p>
+
+  <p>
+    A wrongly created audience produces the <strong>duplicate branch</strong> problem: two
+    separate QSB nodes, rules scattered across both, and a firm seeing half its
+    obligations with no indication the other half exists. Nothing downstream can detect
+    it, because both branches look perfectly valid.
+  </p>
+
+  <p>
+    Because new audiences are rare, one approval click prevents it outright. And crucially
+    the gate <strong>doesn't block the expensive work</strong> — clauses under a pending
+    audience are still parsed and still drafted. Only the final filing waits.
+  </p>
+
+  <div class="callout">
+    <span class="tag">On a cold start</span>
+    <p>
+      Loading 1,000 circulars into an empty system would mean an approval prompt on
+      practically every document. So bulk load doesn't decide as it goes: it collects
+      every audience candidate across all 1,000 documents first, normalises them, and lets
+      the exact and implication rungs collapse the duplicates. Thousands of headings
+      reduce to roughly <strong>40 distinct audiences</strong>, approved in one sitting.
+    </p>
+  </div>
+</section>
+
+<section>
+  <h2><span class="num">06</span> Audiences form a lattice, not a tree</h2>
+
+  <p>
+    A folder structure gives everything exactly one parent. Real regulation doesn't work
+    that way — "QSBs holding client funds" sits beneath <em>both</em> "QSBs" and "firms
+    holding client funds", and inherits obligations from both.
+  </p>
+
+  <p>
+    Tick a firm profile below and watch which audiences it qualifies for. A firm collects
+    obligations from <strong>every</strong> node whose test it passes.
+  </p>
+
+  <div class="lattice-grid">
+    <fieldset>
+      <legend>Firm profile</legend>
+      <label class="prop" for="p-cat" style="display:block">
+        category
+        <select id="p-cat">
+          <option value="stock_broker" selected>stock_broker</option>
+          <option value="investment_adviser">investment_adviser</option>
+        </select>
+      </label>
+      <label class="prop"><input type="checkbox" id="p-qsb" checked> is_qsb</label>
+      <label class="prop"><input type="checkbox" id="p-funds" checked> holds_client_funds</label>
+      <label class="prop"><input type="checkbox" id="p-algo"> offers_algo_trading</label>
+    </fieldset>
+
+    <div>
+      <div class="nodes" id="nodes"></div>
+      <div class="tally" id="tally"></div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <h2><span class="num">07</span> What leaves — and who uses it</h2>
+
+  <div class="tw">
+    <table>
+      <thead>
+        <tr><th>Output</th><th>Consumed by</th><th>What it's for</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong>The Audience Register</strong><br>name, test, parents, seen wordings</td>
+          <td>Filing · Evaluation</td>
+          <td>Deciding which firms a rule reaches, and proving why</td>
+        </tr>
+        <tr>
+          <td><strong>Every clause stamped</strong> with its audience</td>
+          <td>Filing (Step&nbsp;12)</td>
+          <td>Goes into the rule's fingerprint, so a QSB rule can never collide with a non-QSB one</td>
+        </tr>
+        <tr>
+          <td><strong>Approval queue</strong><br>proposed audiences and properties</td>
+          <td>SEBI admin console</td>
+          <td>The gate that prevents duplicate branches</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <p>
+    The stamped audience is the payload. When Step 12 files a rule, its fingerprint is
+    built from <em>audience + data-points + the shape of the check</em>. Because the
+    audience is baked in, the 180-day QSB rule and the 90-day non-QSB rule produce
+    different fingerprints and can never be mistaken for versions of each other.
+  </p>
+</section>
+
+<section>
+  <h2><span class="num">08</span> Where it breaks</h2>
+
+  <h3>Telling <em>who</em> from <em>what</em></h3>
+  <div class="panel">
+    <div class="panel-body"><pre>"Obligations of QSBs"                             <span class="hl">→ WHO</span>
+"Cyber security"                                  <span class="hl">→ topic</span>
+"Algorithmic trading"                             <span class="hl">→ topic</span>
+"Brokers offering algorithmic trading to clients" <span class="warn">→ WHO</span>  ← nearly the same words</pre></div>
+  </div>
+  <p>
+    Get it wrong one way and you create a phantom audience — the approval gate catches
+    that. Get it wrong the other way and rules pile into an audience that's too broad, so
+    firms receive obligations that aren't theirs. That direction has no automatic guard,
+    and would surface as a firm querying a rule they shouldn't have.
+  </p>
+
+  <h3>Audiences written in prose</h3>
+  <p>
+    <em>"Where the broker holds client funds, the audit shall…"</em> is a genuine audience
+    buried mid-sentence. This step never sees it, because it only reads headings. It
+    survives as a condition attached to that single rule — correct, but that firm's
+    dashboard won't group it the way a real audience would.
+  </p>
+  <p>
+    Table rows partly close this gap, since a rule table's first column is very often the
+    audience. Prose remains open.
+  </p>
+</section>
+
+<footer class="end">
+  Setu · Step 10 of the ingestion pipeline · companion to docs/product-logic.md
+</footer>
+
+</div>
+
+<script>
+(function () {
+  "use strict";
+
+  var RUNGS = [
+    { n: "0", t: "CHEAP GATE", w: "Does the heading contain audience-shaped wording — “obligations of”, “applicable to”, “registered as”? No AI, no lookup, free." },
+    { n: "1", t: "TRANSLATE", w: "Retrieve ~10 properties relevant to this heading, add the ~25-property cached core, then one AI call: heading + section preview + parent audience + that slice. Comes back as a name and a test." },
+    { n: "2", t: "NORMALISE", w: "Put the test in standard form — terms sorted, ranges merged, values written one way — so two circulars phrasing it differently produce identical strings." },
+    { n: "3", t: "EXACT MATCH", w: "Is there an existing audience whose normalised test is character-identical? Then it is provably the same set of firms." },
+    { n: "4", t: "IMPLICATION", w: "Does one test imply the other? If every firm matching the new test also matches an existing one, the new audience nests underneath it." },
+    { n: "5", t: "SIMILARITY", w: "No logical match. Fall back to comparing the audience description by meaning, and retrieve the five closest." },
+    { n: "6", t: "AI JUDGE", w: "Borderline candidates only. “Are these the same group of firms?” Answered by meaning, never by name." },
+    { n: "7", t: "NEW + GATE", w: "Nothing matched. Propose a new audience and wait for a human.", gate: true }
+  ];
+
+  var SCEN = [
+    {
+      heading: "9.  Obligations of Qualified Stock Brokers (QSBs)",
+      stop: 7,
+      out: {
+        0: "matches “obligations of” → continue",
+        1: "name: Qualified Stock Brokers\ntest: category=stock_broker AND is_qsb=true\nnew properties needed: none",
+        2: "→ category=stock_broker AND is_qsb=true",
+        3: "register is empty — nothing to match",
+        4: "only “all stock brokers” exists; the new test implies it, but this is a\nnarrower group, not the same one → not a reuse",
+        5: "no close descriptions in an empty register",
+        6: "no candidates worth judging",
+        7: "PROPOSED — queued for admin approval"
+      },
+      verdict: "New audience proposed. Clauses beneath it are still parsed and drafted; only filing waits for the approval."
+    },
+    {
+      heading: "1.  QSB Obligations",
+      stop: 3,
+      out: {
+        0: "matches “obligations” → continue",
+        1: "name: QSB Obligations\ntest: category=stock_broker AND is_qsb=true\nnew properties needed: none",
+        2: "→ category=stock_broker AND is_qsb=true",
+        3: "IDENTICAL to audience #2 → provably the same set of firms"
+      },
+      verdict: "Reused audience #2. Different wording, different numbering, half the depth — none of it mattered, because the tests matched exactly. No new branch created."
+    },
+    {
+      heading: "4.  Requirements for QSBs holding client funds",
+      stop: 4,
+      out: {
+        0: "matches “requirements for” → continue",
+        1: "name: QSBs holding client funds\ntest: category=stock_broker AND holds_client_funds=true AND is_qsb=true",
+        2: "→ category=stock_broker AND holds_client_funds=true AND is_qsb=true",
+        3: "no identical test exists",
+        4: "every term of audience #2's test appears in this one\n→ this is a NARROWER group → nest it beneath #2"
+      },
+      verdict: "New node, nested under “Qualified Stock Brokers”. Computed, not guessed — and it also nests under “firms holding client funds”, which is why the structure is a lattice."
+    },
+    {
+      heading: "9.5  Cyber security and cyber resilience",
+      stop: 0,
+      out: {
+        0: "no audience wording → inherit the parent's audience → STOP"
+      },
+      verdict: "Inherits “Qualified Stock Brokers” from its parent. Zero AI calls, zero lookups. Roughly 85% of headings exit right here."
+    },
+    {
+      heading: "7.  Obligations of brokers offering algorithmic trading",
+      stop: 7,
+      out: {
+        0: "matches “obligations of” → continue",
+        1: "retrieved for this heading: uses_colocation, has_algo_approval, is_dma_provider\ncore + tail sent: 28 properties — none of them fit\n\nname: Brokers offering algorithmic trading\ntest: category=stock_broker AND offers_algo_trading=true\nnew properties needed: offers_algo_trading  ← nothing in the slice matched",
+        2: "→ category=stock_broker AND offers_algo_trading=true",
+        3: "no identical test",
+        4: "no implication — the property itself is unknown to the register",
+        5: "nearest description: “brokers using automated order systems” (0.29)",
+        6: "judge: different — automated order routing is not the same as offering\nalgorithmic trading to clients",
+        7: "TWO approvals queued: the new property, then the audience using it"
+      },
+      verdict: "Vocabulary extension. A new firm property is structural — it changes what every future heading can be translated into — so it is approved separately from the audience itself."
+    }
+  ];
+
+  var ladder = document.getElementById("ladder");
+  var headingEl = document.getElementById("sc-heading");
+  var verdictEl = document.getElementById("sc-verdict");
+  var buttons = Array.prototype.slice.call(document.querySelectorAll(".scenarios button"));
+
+  function render(i) {
+    var s = SCEN[i];
+    headingEl.textContent = s.heading;
+    verdictEl.textContent = s.verdict;
+    ladder.innerHTML = "";
+
+    RUNGS.forEach(function (r, idx) {
+      var row = document.createElement("div");
+      row.className = "rung";
+      if (r.gate) row.className += " gate";
+      if (idx > s.stop) row.className += " skipped";
+      if (idx === s.stop) row.className += " resolved";
+
+      var n = document.createElement("div");
+      n.className = "rung-n";
+      n.textContent = r.n;
+
+      var b = document.createElement("div");
+      b.className = "rung-body";
+
+      var t = document.createElement("div");
+      t.className = "rung-title";
+      t.textContent = r.t;
+
+      var w = document.createElement("p");
+      w.className = "rung-what";
+      w.textContent = r.w;
+
+      b.appendChild(t);
+      b.appendChild(w);
+
+      if (s.out[idx]) {
+        var o = document.createElement("div");
+        o.className = "rung-out";
+        var mark = document.createElement("span");
+        mark.className = "mark";
+        mark.textContent = "▸ ";
+        o.appendChild(mark);
+        o.appendChild(document.createTextNode(s.out[idx]));
+        o.style.whiteSpace = "pre-wrap";
+        b.appendChild(o);
+      }
+
+      row.appendChild(n);
+      row.appendChild(b);
+      ladder.appendChild(row);
+    });
+  }
+
+  buttons.forEach(function (btn) {
+    btn.addEventListener("click", function () {
+      buttons.forEach(function (b) { b.setAttribute("aria-pressed", "false"); });
+      btn.setAttribute("aria-pressed", "true");
+      render(parseInt(btn.getAttribute("data-s"), 10));
+    });
+  });
+
+  render(0);
+
+  // ---- lattice ----
+  var AUD = [
+    { d: 0, name: "All stock brokers", test: "category=stock_broker",
+      f: function (p) { return p.cat === "stock_broker"; }, rules: 412 },
+    { d: 1, name: "Qualified Stock Brokers", test: "category=stock_broker AND is_qsb=true",
+      f: function (p) { return p.cat === "stock_broker" && p.qsb; }, rules: 87 },
+    { d: 1, name: "Firms holding client funds", test: "holds_client_funds=true",
+      f: function (p) { return p.funds; }, rules: 34 },
+    { d: 2, name: "QSBs holding client funds", test: "category=stock_broker AND holds_client_funds=true AND is_qsb=true",
+      f: function (p) { return p.cat === "stock_broker" && p.qsb && p.funds; }, rules: 19 },
+    { d: 1, name: "Brokers offering algorithmic trading", test: "category=stock_broker AND offers_algo_trading=true",
+      f: function (p) { return p.cat === "stock_broker" && p.algo; }, rules: 23 },
+    { d: 0, name: "All investment advisers", test: "category=investment_adviser",
+      f: function (p) { return p.cat === "investment_adviser"; }, rules: 156 }
+  ];
+
+  var nodesEl = document.getElementById("nodes");
+  var tallyEl = document.getElementById("tally");
+  var inputs = {
+    cat: document.getElementById("p-cat"),
+    qsb: document.getElementById("p-qsb"),
+    funds: document.getElementById("p-funds"),
+    algo: document.getElementById("p-algo")
+  };
+
+  function paint() {
+    var p = {
+      cat: inputs.cat.value,
+      qsb: inputs.qsb.checked,
+      funds: inputs.funds.checked,
+      algo: inputs.algo.checked
+    };
+    nodesEl.innerHTML = "";
+    var hits = 0, total = 0;
+
+    AUD.forEach(function (a) {
+      var on = a.f(p);
+      if (on) { hits++; total += a.rules; }
+
+      var el = document.createElement("div");
+      el.className = "node" + (on ? " on" : "");
+      el.setAttribute("data-depth", String(a.d));
+
+      var left = document.createElement("div");
+      var nm = document.createElement("div");
+      nm.textContent = a.name;
+      var ts = document.createElement("div");
+      ts.className = "test";
+      ts.textContent = a.test;
+      left.appendChild(nm);
+      left.appendChild(ts);
+
+      var bd = document.createElement("div");
+      bd.className = "badge";
+      bd.textContent = on ? "✓ " + a.rules + " rules" : a.rules + " rules";
+
+      el.appendChild(left);
+      el.appendChild(bd);
+      nodesEl.appendChild(el);
+    });
+
+    tallyEl.innerHTML = "This firm matches <b>" + hits + "</b> of " + AUD.length +
+      " audiences → <b>" + total + "</b> obligations on its dashboard.";
+  }
+
+  Object.keys(inputs).forEach(function (k) {
+    inputs[k].addEventListener("change", paint);
+  });
+  paint();
+})();
+</script>
+
+</html>
